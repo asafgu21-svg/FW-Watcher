@@ -302,47 +302,47 @@ function buildStyle() {
 
 // ── layout helpers ────────────────────────────────────────────────────────────
 function initialLayout() {
-  if (HAS_FCOSE) {
-    return {
-      name: 'fcose',
-      animate: true, animationDuration: 900, padding: 120,
-      nodeSeparation: 420,       // large gap so expanded compounds don't touch
-      nodeRepulsion: 22000,
-      idealEdgeLength: 320,
-      edgeElasticity: 0.55,
-      gravity: 0.18,
-      numIter: 3000,
-      tile: false, randomize: true,
-      quality: 'default',
-      packComponents: true,
-      uniformNodeDimensions: false,
-    };
-  }
   return {
-    name: 'cose', animate: true, animationDuration: 700, padding: 90,
-    nodeRepulsion: 500000, idealEdgeLength: 300, gravity: 0.4,
-    nodeOverlap: 50, randomize: true,
+    name: 'grid',
+    animate: true, animationDuration: 700,
+    padding: 80,
+    avoidOverlap: true, avoidOverlapPadding: 60,
   };
 }
 
-function incrementalLayout() {
-  if (HAS_FCOSE) {
-    return {
-      name: 'fcose',
-      animate: true, animationDuration: 550, fit: false,
-      randomize: false, quality: 'default',
-      initialEnergyOnIncremental: 0.12,  // low energy → small, smooth nudges only
-      nodeSeparation: 380,
-      nodeRepulsion: 18000,
-      idealEdgeLength: 300,
-      gravity: 0.12,
-    };
-  }
-  return {
-    name: 'cose', animate: true, animationDuration: 380, fit: false,
-    nodeRepulsion: 500000, idealEdgeLength: 260, gravity: 0.4,
-    randomize: false, nodeOverlap: 40,
-  };
+// Custom grid layout that correctly moves compound nodes (and their children)
+// together, preventing expanded subnets from overlapping siblings.
+function applyGridLayout(opts) {
+  const { fit = true, duration = 600 } = opts || {};
+  const orphans = cy.nodes(':orphan').toArray();
+  if (!orphans.length) return;
+  orphans.sort((a, b) => a.id().localeCompare(b.id()));
+  const cols = Math.ceil(Math.sqrt(orphans.length));
+  let maxW = 160, maxH = 160;
+  const GAP = 250;
+  orphans.forEach(node => {
+    const bb = node.boundingBox({ includeLabels: false });
+    maxW = Math.max(maxW, bb.w);
+    maxH = Math.max(maxH, bb.h);
+  });
+  const CELL_W = maxW + GAP, CELL_H = maxH + GAP;
+  orphans.forEach((node, i) => {
+    const col = i % cols, row = Math.floor(i / cols);
+    const tx = col * CELL_W + CELL_W / 2;
+    const ty = row * CELL_H + CELL_H / 2;
+    if (node.isParent()) {
+      const bb = node.boundingBox({ includeLabels: false });
+      const dx = tx - (bb.x1 + bb.x2) / 2;
+      const dy = ty - (bb.y1 + bb.y2) / 2;
+      node.descendants().forEach(ch => {
+        const p = ch.position();
+        ch.animate({ position: { x: p.x + dx, y: p.y + dy } }, { duration });
+      });
+    } else {
+      node.animate({ position: { x: tx, y: ty } }, { duration });
+    }
+  });
+  if (fit) setTimeout(() => cy.fit(undefined, 80), duration + 50);
 }
 
 // ── build graph ───────────────────────────────────────────────────────────────
@@ -403,7 +403,7 @@ function expandNode(nodeId) {
   const n       = members.length;
   const cols    = n === 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
   const rows    = Math.ceil(n / cols);
-  const GAPX    = 100, GAPY = 80;
+  const GAPX    = 140, GAPY = 110;
   const toAdd   = [];
   const childIds = [];
 
@@ -429,8 +429,7 @@ function expandNode(nodeId) {
   cy.add(toAdd);
   node.addClass('expanded');
   expandedNodes.set(nodeId, childIds);
-  // No layout run — children are pinned to their grid positions above.
-  // Running fcose here would reposition children and collapse them into a line.
+  applyGridLayout({ fit: true });
 }
 
 function collapseNode(nodeId) {
@@ -442,12 +441,10 @@ function collapseNode(nodeId) {
   node.removeClass('expanded');
   expandedNodes.delete(nodeId);
 
-  // Restore original center so the node snaps back to where it was
   const saved = savedPositions.get(nodeId);
   if (saved) { node.position(saved); savedPositions.delete(nodeId); }
 
-  // Light re-layout to close the gap left by removed children
-  cy.layout(incrementalLayout()).run();
+  applyGridLayout({ fit: false });
 }
 
 // ── focus ─────────────────────────────────────────────────────────────────────
@@ -666,7 +663,7 @@ document.getElementById('btn-fit').addEventListener('click', () => cy && cy.fit(
 
 document.getElementById('btn-relayout').addEventListener('click', () => {
   if (!cy) return;
-  cy.layout(initialLayout()).run();
+  applyGridLayout();
   toast('Re-running layout…');
 });
 
