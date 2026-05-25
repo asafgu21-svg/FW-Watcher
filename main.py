@@ -346,10 +346,10 @@ class LegendWidget(QWidget):
         layout.setSpacing(16)
 
         items = [
-            ("#107c10", "Accept"),
-            ("#c50f1f", "Deny"),
-            ("#e87722", "Mixed"),
-            ("#888888", "Disabled"),
+            ("#2E7D32", "Accept"),
+            ("#C62828", "Deny"),
+            ("#E65100", "Mixed"),
+            ("#607D8B", "Disabled"),
         ]
         layout.addWidget(_label("Legend:", bold=True, size=8))
         for color, text in items:
