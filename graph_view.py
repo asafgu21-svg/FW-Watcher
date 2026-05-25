@@ -538,7 +538,10 @@ class NetworkScene(QGraphicsScene):
             try:
                 raw_pos = nx.spring_layout(G, seed=42)
             except Exception:
-                raw_pos = nx.circular_layout(G)
+                try:
+                    raw_pos = nx.circular_layout(G)
+                except Exception:
+                    raw_pos = _circular_layout_pure(G)
 
         SCALE = 320
         for name, (rx, ry) in raw_pos.items():
@@ -636,6 +639,21 @@ class NetworkScene(QGraphicsScene):
 
 def _is_virtual(name: str) -> bool:
     return name == "__ANY__" or (name.startswith("[") and name.endswith("]"))
+
+
+def _circular_layout_pure(G) -> dict:
+    """Circular layout using only the stdlib math module — no numpy needed."""
+    nodes = list(G.nodes())
+    n = len(nodes)
+    if n == 0:
+        return {}
+    if n == 1:
+        return {nodes[0]: (0.0, 0.0)}
+    return {
+        node: (math.cos(2 * math.pi * i / n - math.pi / 2),
+               math.sin(2 * math.pi * i / n - math.pi / 2))
+        for i, node in enumerate(nodes)
+    }
 
 
 # ── NetworkGraphView ──────────────────────────────────────────────────────────
