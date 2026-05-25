@@ -131,7 +131,7 @@ class SubnetNode(QGraphicsObject):
                              "−" if self._expanded else "+")
 
         # name
-        name_w = r.width() - 16 - btn_w
+        name_w = int(r.width()) - 16 - btn_w
         fn = QFont("Segoe UI", 9, QFont.Weight.Bold)
         painter.setFont(fn)
         painter.setPen(QColor("white"))
