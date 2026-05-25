@@ -350,6 +350,7 @@ class LegendWidget(QWidget):
             ("#C62828", "Deny"),
             ("#E65100", "Mixed"),
             ("#607D8B", "Disabled"),
+            ("#6A1B9A", "ANY (catch-all)"),
         ]
         layout.addWidget(_label("Legend:", bold=True, size=8))
         for color, text in items:

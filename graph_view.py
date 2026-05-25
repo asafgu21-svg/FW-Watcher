@@ -7,7 +7,7 @@ import networkx as nx
 from PyQt6.QtCore import Qt, QRectF, QPointF, QLineF, pyqtSignal
 from PyQt6.QtGui import (QPainter, QPen, QBrush, QColor, QFont,
                          QPainterPath, QPolygonF, QFontMetrics,
-                         QLinearGradient, QWheelEvent, QPainterPathStroker)
+                         QWheelEvent, QPainterPathStroker)
 from PyQt6.QtWidgets import (QGraphicsItem, QGraphicsScene, QGraphicsView,
                               QGraphicsObject)
 
@@ -47,7 +47,7 @@ CONTAINER_PAD  = 16
 CONTAINER_GAP  = 12
 CONTAINER_HDR  = HEADER_H
 
-CURVE_OFFSET = 55
+CURVE_OFFSET = 18   # small offset keeps bidirectional edges visually separate
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -69,12 +69,6 @@ def _member_local_pos(i: int, n: int, cw: int, ch: int) -> tuple[float, float]:
     y = -ch / 2 + CONTAINER_HDR + CONTAINER_PAD + row * (MEMBER_H + CONTAINER_GAP) + MEMBER_H / 2
     return x, y
 
-
-def _hdr_gradient(rect: QRectF, top: QColor, bot: QColor) -> QLinearGradient:
-    g = QLinearGradient(rect.topLeft(), rect.bottomLeft())
-    g.setColorAt(0.0, top)
-    g.setColorAt(1.0, bot)
-    return g
 
 
 # ── SubnetNode ────────────────────────────────────────────────────────────────
@@ -104,7 +98,20 @@ class SubnetNode(QGraphicsObject):
         self.setAcceptHoverEvents(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setZValue(1)
-        self.setToolTip(name)
+        if virtual:
+            self.setToolTip(
+                f"{name}\n"
+                "Purple = catch-all virtual node.\n"
+                "Represents any address that doesn't belong to a specific subnet."
+            )
+        elif member_count > 0:
+            self.setToolTip(
+                f"{name}  ·  {cidr}\n"
+                f"{member_count} member object(s)\n"
+                "Click to expand / collapse members"
+            )
+        else:
+            self.setToolTip(f"{name}  ·  {cidr}")
 
     # ── state ──────────────────────────────────────────────────────────────────
     def set_search_state(self, highlighted: bool, dimmed: bool):
@@ -168,14 +175,15 @@ class SubnetNode(QGraphicsObject):
         painter.setBrush(QBrush(bg))
         painter.drawRoundedRect(r, 10, 10)
 
-        # header gradient
-        hdr_rect = QRectF(r.x(), r.y(), r.width(), HEADER_H)
-        hdr_path = QPainterPath()
-        hdr_path.addRoundedRect(hdr_rect, 10, 10)
-        hdr_path.addRect(QRectF(r.x(), r.y() + 10, r.width(), HEADER_H - 10))
+        # header — clip to body shape, draw solid colour strip
+        painter.save()
+        clip = QPainterPath()
+        clip.addRoundedRect(r, 10, 10)
+        painter.setClipPath(clip)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(_hdr_gradient(hdr_rect, hdr_top, hdr_bot)))
-        painter.drawPath(hdr_path)
+        painter.setBrush(QBrush(hdr_top))
+        painter.drawRect(QRectF(r.x(), r.y(), r.width(), HEADER_H))
+        painter.restore()
 
         # +/− button
         has_members = self.member_count > 0
@@ -215,14 +223,13 @@ class SubnetNode(QGraphicsObject):
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, cidr_text
         )
 
-        # member badge
+        # member count badge (bottom-right)
         if self.member_count > 0:
-            br = QRectF(r.right() - 28, r.bottom() - 20, 22, 15)
+            br = QRectF(r.right() - 22, r.bottom() - 16, 16, 12)
             painter.setBrush(QBrush(QColor("#BBDEFB")))
             painter.setPen(QPen(C_NODE_HDR, 1))
-            painter.drawRoundedRect(br, 7, 7)
-            fb = QFont("Segoe UI", 7, QFont.Weight.Bold)
-            painter.setFont(fb)
+            painter.drawRoundedRect(br, 5, 5)
+            painter.setFont(QFont("Segoe UI", 6, QFont.Weight.Bold))
             painter.setPen(C_NODE_HDR)
             painter.drawText(br, Qt.AlignmentFlag.AlignCenter, str(self.member_count))
 
@@ -245,14 +252,15 @@ class SubnetNode(QGraphicsObject):
         painter.setBrush(QBrush(C_CONTAINER_FILL))
         painter.drawRoundedRect(r, 12, 12)
 
-        # header strip
-        hdr_rect = QRectF(r.x(), r.y(), r.width(), CONTAINER_HDR)
-        hdr_path = QPainterPath()
-        hdr_path.addRoundedRect(hdr_rect, 12, 12)
-        hdr_path.addRect(QRectF(r.x(), r.y() + 12, r.width(), CONTAINER_HDR - 12))
+        # header strip — clip to container shape, draw solid colour
+        painter.save()
+        clip2 = QPainterPath()
+        clip2.addRoundedRect(r, 12, 12)
+        painter.setClipPath(clip2)
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QBrush(_hdr_gradient(hdr_rect, hdr_top, hdr_bot)))
-        painter.drawPath(hdr_path)
+        painter.setBrush(QBrush(hdr_top))
+        painter.drawRect(QRectF(r.x(), r.y(), r.width(), CONTAINER_HDR))
+        painter.restore()
 
         # collapse button
         btn_r = QRectF(r.right() - 26, r.y() + 5, 22, CONTAINER_HDR - 10)
@@ -438,6 +446,11 @@ class PolicyEdge(QGraphicsItem):
         self.setAcceptHoverEvents(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, True)
+        n = conn["count"]
+        self.setToolTip(
+            f"{n} firewall polic{'y' if n == 1 else 'ies'}\n"
+            "Click to see policy details in the side panel"
+        )
 
     def _color(self) -> QColor:
         if self.conn["all_disabled"]:
@@ -530,7 +543,7 @@ class PolicyEdge(QGraphicsItem):
         painter.setPen(QPen(color, 1))
         painter.drawPolygon(QPolygonF([end, p1, p2]))
 
-        # count badge at midpoint
+        # policy count badge at midpoint — small pill
         n  = self.conn["count"]
         if ctrl:
             t  = 0.5
@@ -538,11 +551,11 @@ class PolicyEdge(QGraphicsItem):
             my = (1-t)**2 * start.y() + 2*(1-t)*t * ctrl.y() + t**2 * end.y()
         else:
             mx, my = (start.x() + end.x()) / 2, (start.y() + end.y()) / 2
-        br = QRectF(mx - 11, my - 9, 22, 18)
+        br = QRectF(mx - 7, my - 6, 14, 12)
         painter.setBrush(QBrush(color))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(br)
-        painter.setFont(QFont("Segoe UI", 7, QFont.Weight.Bold))
+        painter.setFont(QFont("Segoe UI", 6, QFont.Weight.Bold))
         painter.setPen(QColor("white"))
         painter.drawText(br, Qt.AlignmentFlag.AlignCenter, str(n))
 
