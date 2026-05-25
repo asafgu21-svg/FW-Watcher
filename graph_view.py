@@ -12,26 +12,33 @@ from PyQt6.QtWidgets import (QGraphicsItem, QGraphicsScene, QGraphicsView,
                               QGraphicsObject)
 
 # ── colours ───────────────────────────────────────────────────────────────────
-C_NODE_HDR   = QColor("#0078d4")
-C_NODE_BG    = QColor("#ffffff")
-C_NODE_HOVER = QColor("#e6f2fb")
-C_NODE_SEL   = QColor("#005a9e")
-C_ANY_HDR    = QColor("#5c2d91")
-C_HIGHLIGHT  = QColor("#ffd700")
+C_NODE_HDR    = QColor("#0078d4")
+C_NODE_BG     = QColor("#ffffff")
+C_NODE_HOVER  = QColor("#e6f2fb")
+C_NODE_SEL    = QColor("#005a9e")
+C_ANY_HDR     = QColor("#5c2d91")
+C_HIGHLIGHT   = QColor("#ffd700")
 
-C_ACCEPT  = QColor("#107c10")
-C_DENY    = QColor("#c50f1f")
-C_MIXED   = QColor("#e87722")
-C_DISABLED= QColor("#888888")
+C_ACCEPT   = QColor("#107c10")
+C_DENY     = QColor("#c50f1f")
+C_MIXED    = QColor("#e87722")
+C_DISABLED = QColor("#888888")
 
-NODE_W, NODE_H = 160, 68
-CURVE_OFFSET   = 55      # px perpendicular offset for bidirectional edges
+C_MEMBER_HDR   = QColor("#4a9dd4")
+C_MEMBER_BG    = QColor("#f0f7ff")
+C_MEMBER_HOVER = QColor("#dce9f5")
+
+NODE_W, NODE_H     = 180, 68
+MEMBER_W, MEMBER_H = 150, 46
+CURVE_OFFSET       = 55
+EXPAND_RING_R      = 190
 
 
 # ── SubnetNode ────────────────────────────────────────────────────────────────
 class SubnetNode(QGraphicsObject):
     double_clicked = pyqtSignal(str)
     right_clicked  = pyqtSignal(str, QPointF)
+    clicked        = pyqtSignal(str)
 
     def __init__(self, name: str, cidr: str, member_count: int, virtual=False):
         super().__init__()
@@ -42,6 +49,9 @@ class SubnetNode(QGraphicsObject):
         self._hovered     = False
         self._highlighted = False
         self._dimmed      = False
+        self._expanded    = False
+        self._press_pos   = QPointF()
+        self._is_dbl      = False
 
         self.setFlags(
             QGraphicsItem.GraphicsItemFlag.ItemIsMovable |
@@ -51,11 +61,16 @@ class SubnetNode(QGraphicsObject):
         self.setAcceptHoverEvents(True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setZValue(1)
+        self.setToolTip(name)
 
     def set_search_state(self, highlighted: bool, dimmed: bool):
         self._highlighted = highlighted
         self._dimmed      = dimmed
         self.setOpacity(0.25 if dimmed else 1.0)
+        self.update()
+
+    def set_expanded(self, expanded: bool):
+        self._expanded = expanded
         self.update()
 
     def boundingRect(self) -> QRectF:
@@ -77,7 +92,6 @@ class SubnetNode(QGraphicsObject):
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # search-match highlight ring
         if self._highlighted:
             painter.setPen(QPen(C_HIGHLIGHT, 4))
             painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -102,13 +116,28 @@ class SubnetNode(QGraphicsObject):
         painter.setBrush(QBrush(hdr_color))
         painter.drawPath(hp)
 
+        # expand/collapse button (+/−) in top-right of header
+        has_expand = self.member_count > 0
+        btn_w = 22 if has_expand else 0
+        if has_expand:
+            btn_r = QRectF(r.right() - btn_w - 2, r.y() + 2, btn_w, 22)
+            painter.setBrush(QBrush(QColor(255, 255, 255, 55)))
+            painter.setPen(QPen(QColor(255, 255, 255, 120), 1))
+            painter.drawRoundedRect(btn_r, 4, 4)
+            fe = QFont("Segoe UI", 11, QFont.Weight.Bold)
+            painter.setFont(fe)
+            painter.setPen(QColor("white"))
+            painter.drawText(btn_r, Qt.AlignmentFlag.AlignCenter,
+                             "−" if self._expanded else "+")
+
         # name
+        name_w = r.width() - 16 - btn_w
         fn = QFont("Segoe UI", 9, QFont.Weight.Bold)
         painter.setFont(fn)
         painter.setPen(QColor("white"))
         fm = QFontMetrics(fn)
-        display = fm.elidedText(self.node_name, Qt.TextElideMode.ElideRight, NODE_W - 16)
-        painter.drawText(QRectF(r.x() + 8, r.y(), r.width() - 16, 26),
+        display = fm.elidedText(self.node_name, Qt.TextElideMode.ElideRight, name_w)
+        painter.drawText(QRectF(r.x() + 8, r.y(), name_w, 26),
                          Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, display)
 
         # cidr
@@ -119,7 +148,7 @@ class SubnetNode(QGraphicsObject):
         painter.drawText(QRectF(r.x() + 8, r.y() + 28, r.width() - 40, 18),
                          Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, cidr_text)
 
-        # member badge
+        # member count badge
         if self.member_count > 0:
             badge_r = QRectF(r.right() - 28, r.bottom() - 22, 22, 16)
             painter.setBrush(QBrush(QColor("#dce9f5")))
@@ -138,7 +167,19 @@ class SubnetNode(QGraphicsObject):
         self._hovered = False;  self.update()
         super().hoverLeaveEvent(e)
 
+    def mousePressEvent(self, e):
+        self._press_pos = e.pos()
+        self._is_dbl = False
+        super().mousePressEvent(e)
+
+    def mouseReleaseEvent(self, e):
+        if (e.pos() - self._press_pos).manhattanLength() < 5 and not self._is_dbl:
+            self.clicked.emit(self.node_name)
+        self._is_dbl = False
+        super().mouseReleaseEvent(e)
+
     def mouseDoubleClickEvent(self, e):
+        self._is_dbl = True
         self.double_clicked.emit(self.node_name)
         super().mouseDoubleClickEvent(e)
 
@@ -149,6 +190,8 @@ class SubnetNode(QGraphicsObject):
     def itemChange(self, change, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
             for edge in self._connected_edges():
+                if isinstance(edge, MemberConnector):
+                    edge.prepareGeometryChange()
                 edge.update()
         return super().itemChange(change, value)
 
@@ -156,8 +199,135 @@ class SubnetNode(QGraphicsObject):
         if self.scene() is None:
             return []
         return [i for i in self.scene().items()
-                if isinstance(i, PolicyEdge)
-                and (i.src_node is self or i.dst_node is self)]
+                if (isinstance(i, PolicyEdge) and (i.src_node is self or i.dst_node is self))
+                or (isinstance(i, MemberConnector) and i.subnet_node is self)]
+
+
+# ── MemberNode ────────────────────────────────────────────────────────────────
+class MemberNode(QGraphicsObject):
+    clicked = pyqtSignal(str)
+
+    def __init__(self, name: str, display: str):
+        super().__init__()
+        self.node_name    = name
+        self.display_text = display
+        self._hovered     = False
+        self._connector   = None
+        self._press_pos   = QPointF()
+
+        self.setFlags(
+            QGraphicsItem.GraphicsItemFlag.ItemIsMovable |
+            QGraphicsItem.GraphicsItemFlag.ItemIsSelectable |
+            QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges
+        )
+        self.setAcceptHoverEvents(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setZValue(2)
+        self.setToolTip(name)
+
+    def set_connector(self, connector: "MemberConnector"):
+        self._connector = connector
+
+    def boundingRect(self) -> QRectF:
+        return QRectF(-MEMBER_W/2 - 4, -MEMBER_H/2 - 4,
+                      MEMBER_W + 8, MEMBER_H + 8)
+
+    def shape(self) -> QPainterPath:
+        p = QPainterPath()
+        p.addRoundedRect(QRectF(-MEMBER_W/2, -MEMBER_H/2, MEMBER_W, MEMBER_H), 6, 6)
+        return p
+
+    def paint(self, painter: QPainter, option, widget=None):
+        r = QRectF(-MEMBER_W/2, -MEMBER_H/2, MEMBER_W, MEMBER_H)
+        bg     = C_MEMBER_HOVER if self._hovered else C_MEMBER_BG
+        border = C_NODE_SEL if self.isSelected() else C_MEMBER_HDR
+        bw     = 2.5 if self.isSelected() else 1.5
+
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(0, 0, 0, 20))
+        painter.drawRoundedRect(r.adjusted(2, 2, 2, 2), 6, 6)
+
+        painter.setPen(QPen(border, bw, Qt.PenStyle.DashLine))
+        painter.setBrush(QBrush(bg))
+        painter.drawRoundedRect(r, 6, 6)
+
+        fn = QFont("Segoe UI", 8, QFont.Weight.Bold)
+        fm = QFontMetrics(fn)
+        painter.setFont(fn)
+        painter.setPen(QColor("#0060a8"))
+        name_text = fm.elidedText(self.node_name, Qt.TextElideMode.ElideRight, MEMBER_W - 12)
+        painter.drawText(
+            QRectF(r.x() + 6, r.y() + 2, r.width() - 12, MEMBER_H * 0.52),
+            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, name_text
+        )
+
+        fa = QFont("Consolas", 7)
+        fa_fm = QFontMetrics(fa)
+        addr_text = fa_fm.elidedText(
+            self.display_text, Qt.TextElideMode.ElideRight, MEMBER_W - 12)
+        painter.setFont(fa)
+        painter.setPen(QColor("#555555"))
+        painter.drawText(
+            QRectF(r.x() + 6, r.y() + MEMBER_H * 0.50, r.width() - 12, MEMBER_H * 0.48),
+            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft, addr_text
+        )
+
+    def hoverEnterEvent(self, e):
+        self._hovered = True;  self.update()
+        super().hoverEnterEvent(e)
+
+    def hoverLeaveEvent(self, e):
+        self._hovered = False;  self.update()
+        super().hoverLeaveEvent(e)
+
+    def mousePressEvent(self, e):
+        self._press_pos = e.pos()
+        super().mousePressEvent(e)
+
+    def mouseReleaseEvent(self, e):
+        if (e.pos() - self._press_pos).manhattanLength() < 5:
+            self.clicked.emit(self.node_name)
+        super().mouseReleaseEvent(e)
+
+    def itemChange(self, change, value):
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged:
+            if self._connector:
+                self._connector.prepareGeometryChange()
+                self._connector.update()
+        return super().itemChange(change, value)
+
+
+# ── MemberConnector ───────────────────────────────────────────────────────────
+class MemberConnector(QGraphicsItem):
+    def __init__(self, subnet_node: SubnetNode, member_node: MemberNode):
+        super().__init__()
+        self.subnet_node = subnet_node
+        self.member_node = member_node
+        self.setZValue(0.5)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
+
+    def boundingRect(self) -> QRectF:
+        sp  = self.subnet_node.pos()
+        mp  = self.member_node.pos()
+        pad = 6
+        return QRectF(
+            min(sp.x(), mp.x()) - pad,
+            min(sp.y(), mp.y()) - pad,
+            max(abs(sp.x() - mp.x()) + pad * 2, 1),
+            max(abs(sp.y() - mp.y()) + pad * 2, 1),
+        )
+
+    def paint(self, painter: QPainter, option, widget=None):
+        sp = self.subnet_node.pos()
+        mp = self.member_node.pos()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        pen = QPen(QColor("#4a9dd4"), 1.2)
+        pen.setDashPattern([2.0, 5.0])
+        pen.setStyle(Qt.PenStyle.CustomDashLine)
+        painter.setPen(pen)
+        painter.drawLine(sp, mp)
 
 
 # ── PolicyEdge ────────────────────────────────────────────────────────────────
@@ -167,7 +337,7 @@ class PolicyEdge(QGraphicsItem):
         self.src_node     = src
         self.dst_node     = dst
         self.conn         = conn
-        self.curve_offset = curve_offset   # perpendicular px; 0 = straight line
+        self.curve_offset = curve_offset
         self._hovered     = False
         self.setZValue(0)
         self.setAcceptHoverEvents(True)
@@ -259,7 +429,6 @@ class PolicyEdge(QGraphicsItem):
         path, ctrl = self._build_path(start, end)
         painter.drawPath(path)
 
-        # arrowhead — tangent at the endpoint
         if ctrl:
             ang = math.atan2(end.y() - ctrl.y(), end.x() - ctrl.x())
         else:
@@ -274,7 +443,6 @@ class PolicyEdge(QGraphicsItem):
         painter.setPen(QPen(color, 1))
         painter.drawPolygon(QPolygonF([end, p1, p2]))
 
-        # badge at midpoint of curve
         n = self.conn["count"]
         if ctrl:
             t = 0.5
@@ -314,12 +482,14 @@ class NetworkScene(QGraphicsScene):
         self._node_items: dict[str, SubnetNode] = {}
         self._show_any  = True
         self._topology  = None
+        self._expanded_subnets: dict[str, list] = {}
         self.selectionChanged.connect(self._on_selection)
 
     def clear(self):
         super().clear()
         self._node_items.clear()
         self._topology = None
+        self._expanded_subnets.clear()
 
     def _on_selection(self):
         items = self.selectedItems()
@@ -327,6 +497,8 @@ class NetworkScene(QGraphicsScene):
             return
         item = items[0]
         if isinstance(item, SubnetNode):
+            self.node_selected.emit(item.node_name)
+        elif isinstance(item, MemberNode):
             self.node_selected.emit(item.node_name)
         elif isinstance(item, PolicyEdge):
             self.edge_selected.emit(item.conn)
@@ -343,7 +515,6 @@ class NetworkScene(QGraphicsScene):
         subnets = topology.get_subnets()
         conns   = topology.get_connections()
 
-        # filter out ANY / interface virtual nodes when toggle is off
         if not self._show_any:
             conns = [c for c in conns
                      if not _is_virtual(c["src"]) and not _is_virtual(c["dst"])]
@@ -379,10 +550,10 @@ class NetworkScene(QGraphicsScene):
             node.setPos(rx * SCALE, ry * SCALE)
             node.double_clicked.connect(self.subnet_drilled)
             node.right_clicked.connect(self.node_right_clicked)
+            node.clicked.connect(lambda n=name: self._handle_subnet_click(n))
             self.addItem(node)
             self._node_items[name] = node
 
-        # detect bidirectional pairs → curved arcs
         conn_keys = {(c["src"], c["dst"]) for c in conns}
         for c in conns:
             src_n = self._node_items.get(c["src"])
@@ -392,6 +563,55 @@ class NetworkScene(QGraphicsScene):
             bidir  = (c["dst"], c["src"]) in conn_keys
             offset = CURVE_OFFSET if bidir else 0
             self.addItem(PolicyEdge(src_n, dst_n, c, curve_offset=offset))
+
+    # ── expand / collapse ──────────────────────────────────────────────────────
+    def _handle_subnet_click(self, name: str):
+        if not self._topology:
+            return
+        members = self._topology.get_subnet_members(name)
+        if not members:
+            return
+        if name in self._expanded_subnets:
+            self._collapse_subnet(name)
+        else:
+            self._expand_subnet(name, members)
+
+    def _expand_subnet(self, name: str, members: list):
+        subnet_node = self._node_items.get(name)
+        if not subnet_node:
+            return
+
+        n      = len(members)
+        radius = max(EXPAND_RING_R, n * 30)
+        center = subnet_node.pos()
+        items  = []
+
+        for i, member in enumerate(members):
+            angle = 2 * math.pi * i / n - math.pi / 2
+            x = center.x() + radius * math.cos(angle)
+            y = center.y() + radius * math.sin(angle)
+
+            mnode = MemberNode(member.name, member.display_addr)
+            mnode.setPos(x, y)
+            mnode.clicked.connect(self.node_selected)
+            self.addItem(mnode)
+
+            connector = MemberConnector(subnet_node, mnode)
+            self.addItem(connector)
+            mnode.set_connector(connector)
+
+            items.append((mnode, connector))
+
+        self._expanded_subnets[name] = items
+        subnet_node.set_expanded(True)
+
+    def _collapse_subnet(self, name: str):
+        for mnode, connector in self._expanded_subnets.pop(name, []):
+            self.removeItem(connector)
+            self.removeItem(mnode)
+        node = self._node_items.get(name)
+        if node:
+            node.set_expanded(False)
 
     # ── search ─────────────────────────────────────────────────────────────────
     def search(self, text: str):

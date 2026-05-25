@@ -227,3 +227,32 @@ class NetworkTopology:
             })
 
         return self._connections
+
+    def get_policies_for_address(self, name: str) -> list["PolicyObject"]:
+        """Return all policies that reference this address directly, via group, or via subnet."""
+        seen: set[str] = set()
+        result: list[PolicyObject] = []
+
+        def _add(p: "PolicyObject"):
+            if p.policy_id not in seen:
+                seen.add(p.policy_id)
+                result.append(p)
+
+        addr = self.addresses.get(name)
+        for p in self.policies:
+            if name in p.src_addrs or name in p.dst_addrs:
+                _add(p)
+                continue
+            for a in p.src_addrs + p.dst_addrs:
+                grp = self.addresses.get(a)
+                if grp and grp.obj_type == "group" and name in grp.members:
+                    _add(p)
+                    break
+
+        if addr and addr.is_subnet:
+            for c in self.get_connections():
+                if c["src"] == name or c["dst"] == name:
+                    for pol in c["policies"]:
+                        _add(pol)
+
+        return result

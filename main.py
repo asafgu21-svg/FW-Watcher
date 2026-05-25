@@ -162,27 +162,13 @@ class DetailPanel(QWidget):
             [[m.name, m.obj_type, m.display_addr, m.comment] for m in members]
         )
 
-        # related policies
-        related = [p for p in self._topology.policies
-                   if name in p.src_addrs or name in p.dst_addrs
-                   or any(self._topology.addresses.get(a) and
-                          (self._topology.addresses[a].name == name or
-                           (addr and addr.contains(self._topology.addresses[a])))
-                          for a in p.src_addrs + p.dst_addrs)]
-        # simpler: just check all connections
-        rel_pols = []
-        for c in self._topology.get_connections():
-            if c["src"] == name or c["dst"] == name:
-                rel_pols.extend(c["policies"])
-        seen = set()
-        unique_pols = [p for p in rel_pols if p.policy_id not in seen
-                       and not seen.add(p.policy_id)]
+        rel_pols = self._topology.get_policies_for_address(name)
         self._fill_table(self._subnet_policies_table, [
             [p.policy_id, p.name,
              ", ".join(p.src_addrs[:2]) + ("…" if len(p.src_addrs) > 2 else ""),
              ", ".join(p.dst_addrs[:2]) + ("…" if len(p.dst_addrs) > 2 else ""),
              p.action_label]
-            for p in unique_pols
+            for p in rel_pols
         ])
         self._stack.setCurrentIndex(1)
 
