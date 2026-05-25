@@ -75,9 +75,12 @@ def _topology_json() -> dict:
     edges: list[dict] = []
 
     conns = topology.get_connections()
-    subnets = set(topology.get_subnets())
 
-    all_names: set[str] = set(subnets)
+    # Nodes: all subnets + all groups + anything named in policy connections
+    all_names: set[str] = set(topology.get_subnets())
+    for n, a in topology.addresses.items():
+        if a.obj_type == "group" and a.members:
+            all_names.add(n)
     for c in conns:
         all_names.add(c["src"])
         all_names.add(c["dst"])
@@ -85,13 +88,13 @@ def _topology_json() -> dict:
     for name in all_names:
         addr = topology.addresses.get(name)
         virtual = name not in topology.addresses
-        members = topology.get_subnet_members(name) if addr else []
+        members = topology.get_group_members(name) if addr else []
         nodes.append({
             "id": name,
             "label": name,
             "cidr": addr.display_addr if addr else "",
             "virtual": virtual,
-            "isSubnet": name in subnets,
+            "isGroup": bool(members),
             "memberCount": len(members),
             "comment": addr.comment if addr else "",
             "members": [

@@ -162,24 +162,30 @@ class NetworkTopology:
 
     # ------------------------------------------------------------------ public
 
-    def get_subnet_members(self, subnet_name: str) -> list[AddressObject]:
-        subnet = self.addresses.get(subnet_name)
-        if not subnet:
+    def get_group_members(self, name: str) -> list["AddressObject"]:
+        """Direct members of a group (by explicit membership, not IP containment)."""
+        addr = self.addresses.get(name)
+        if not addr:
             return []
+        if addr.obj_type == "group":
+            return [self.addresses[m] for m in addr.members if m in self.addresses]
+        # ipmask subnet: return IP-contained addresses (leaf hosts and sub-subnets)
         result = []
-        for name, addr in self.addresses.items():
-            if name == subnet_name:
+        for aname, a in self.addresses.items():
+            if aname == name:
                 continue
-            if addr.obj_type == "group":
+            if a.obj_type == "group":
                 continue
-            if name in self.get_subnets():
-                # only include if it's a child subnet (strictly contained)
-                if subnet.contains(addr) and name != subnet_name:
-                    result.append(addr)
+            if aname in self.get_subnets():
+                if addr.contains(a):
+                    result.append(a)
                 continue
-            if subnet.contains(addr):
-                result.append(addr)
+            if addr.contains(a):
+                result.append(a)
         return result
+
+    def get_subnet_members(self, subnet_name: str) -> list[AddressObject]:
+        return self.get_group_members(subnet_name)
 
     def get_connections(self) -> list[dict]:
         if self._connections is not None:
@@ -188,31 +194,21 @@ class NetworkTopology:
         conn_map: dict[tuple, list[PolicyObject]] = {}
 
         for policy in self.policies:
-            src_leaves = self._resolve_leaves(policy.src_addrs)
-            dst_leaves = self._resolve_leaves(policy.dst_addrs)
+            # Use the address names exactly as written in the policy (no IP resolution).
+            # Unknown names become the virtual __ANY__ catch-all.
+            def _node_name(n: str) -> str:
+                if n.lower() in ("all", "any") or n not in self.addresses:
+                    return "__ANY__"
+                return n
 
-            src_nodes, dst_nodes = set(), set()
-
-            for addr in src_leaves:
-                if addr.name.lower() in ("all", "any"):
-                    src_nodes.add("__ANY__")
-                else:
-                    sn = self._find_subnet_for(addr)
-                    src_nodes.add(sn if sn else "__ANY__")
-
-            for addr in dst_leaves:
-                if addr.name.lower() in ("all", "any"):
-                    dst_nodes.add("__ANY__")
-                else:
-                    sn = self._find_subnet_for(addr)
-                    dst_nodes.add(sn if sn else "__ANY__")
+            src_nodes = {_node_name(n) for n in policy.src_addrs}
+            dst_nodes = {_node_name(n) for n in policy.dst_addrs}
 
             for src in src_nodes:
                 for dst in dst_nodes:
                     if src == dst:
                         continue
-                    key = (src, dst)
-                    conn_map.setdefault(key, []).append(policy)
+                    conn_map.setdefault((src, dst), []).append(policy)
 
         def _pid_key(p: PolicyObject):
             try:

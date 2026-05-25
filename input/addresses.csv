@@ -1,20 +1,33 @@
 Name,Type,Subnet,Interface,Comment,Members
-LAN,ipmask,192.168.1.0 255.255.255.0,port1,Internal LAN,
-DMZ,ipmask,10.10.10.0 255.255.255.0,port2,DMZ Network,
-WAN,ipmask,203.0.113.0 255.255.255.0,port3,External WAN Subnet,
-MGMT,ipmask,172.16.0.0 255.255.255.0,port4,Management Network,
-Server-Web,ipmask,10.10.10.10 255.255.255.255,port2,Primary Web Server,
-Server-DB,ipmask,10.10.10.20 255.255.255.255,port2,Database Server,
-Server-Mail,ipmask,10.10.10.30 255.255.255.255,port2,Mail Server,
-PC-001,ipmask,192.168.1.10 255.255.255.255,port1,Finance Workstation,
-PC-002,ipmask,192.168.1.20 255.255.255.255,port1,HR Workstation,
-PC-003,ipmask,192.168.1.30 255.255.255.255,port1,Dev Workstation,
-Firewall-Mgmt,ipmask,172.16.0.1 255.255.255.255,port4,Firewall Management IP,
-Switch-Core,ipmask,172.16.0.10 255.255.255.255,port4,Core Switch,
-Range-DHCP,iprange,192.168.1.100-192.168.1.200,port1,DHCP Pool,
-Range-VPN,iprange,10.20.30.1-10.20.30.50,any,VPN Client Pool,
-external-dns,fqdn,,,External DNS Server (Google),
-all,ipmask,0.0.0.0 0.0.0.0,any,Any/All traffic,,
-DMZ-Servers,group,,,All DMZ Servers,Server-Web Server-DB Server-Mail
-LAN-Users,group,,,All LAN Workstations,PC-001 PC-002 PC-003
-MGMT-Devices,group,,,Management Devices,Firewall-Mgmt Switch-Core
+Corp-LAN,ipmask,192.168.0.0 255.255.0.0,port1,Corporate LAN segment,
+Dev-LAN,ipmask,10.10.0.0 255.255.0.0,port2,Development LAN segment,
+DMZ,ipmask,172.20.0.0 255.255.255.0,port3,Demilitarized zone,
+MGMT,ipmask,172.16.0.0 255.255.255.0,port4,Management network,
+Corp-WS-001,ipmask,192.168.1.10 255.255.255.255,port1,Finance workstation,
+Corp-WS-002,ipmask,192.168.1.20 255.255.255.255,port1,HR workstation,
+Corp-WS-003,ipmask,192.168.1.30 255.255.255.255,port1,Legal workstation,
+Dev-WS-001,ipmask,10.10.1.10 255.255.255.255,port2,Backend dev workstation,
+Dev-WS-002,ipmask,10.10.1.20 255.255.255.255,port2,Frontend dev workstation,
+Web-Srv-1,ipmask,172.20.0.10 255.255.255.255,port3,Primary web server,
+Web-Srv-2,ipmask,172.20.0.11 255.255.255.255,port3,Secondary web server (HA),
+App-Srv-1,ipmask,172.20.0.20 255.255.255.255,port3,Application server 1,
+App-Srv-2,ipmask,172.20.0.21 255.255.255.255,port3,Application server 2,
+DB-Srv-1,ipmask,172.20.0.30 255.255.255.255,port3,Primary database server,
+DB-Srv-2,ipmask,172.20.0.31 255.255.255.255,port3,Replica database server,
+Backup-Srv,ipmask,172.16.0.50 255.255.255.255,port4,Centralized backup server,
+FW-Mgmt,ipmask,172.16.0.1 255.255.255.255,port4,Firewall management IP,
+Switch-Core,ipmask,172.16.0.10 255.255.255.255,port4,Core switch management,
+Router-Core,ipmask,172.16.0.11 255.255.255.255,port4,Core router management,
+VPN-Pool,iprange,10.20.30.1-10.20.30.100,any,Remote access VPN pool,
+External-DNS,fqdn,,,Public DNS (8.8.8.8 / 1.1.1.1),
+all,ipmask,0.0.0.0 0.0.0.0,any,Any/all traffic,
+DMZ-Web,group,,,Web-tier servers,Web-Srv-1 Web-Srv-2
+DMZ-App,group,,,Application-tier servers,App-Srv-1 App-Srv-2
+DMZ-DB,group,,,Database-tier servers (also member of Backup-Systems),DB-Srv-1 DB-Srv-2
+DMZ-All,group,,,All DMZ servers — nested group of DMZ-Web + DMZ-App + DMZ-DB,DMZ-Web DMZ-App DMZ-DB
+Corp-Users,group,,,All corporate workstations,Corp-WS-001 Corp-WS-002 Corp-WS-003
+Dev-Users,group,,,All developer workstations,Dev-WS-001 Dev-WS-002
+All-Internal,group,,,All internal users — nested group of Corp-Users + Dev-Users,Corp-Users Dev-Users
+NetOps,group,,,Network operations devices (Backup-Srv is also in Backup-Systems),FW-Mgmt Switch-Core Router-Core Backup-Srv
+Backup-Systems,group,,,Backup infrastructure — DB-Srv-1 and DB-Srv-2 also in DMZ-DB,Backup-Srv DB-Srv-1 DB-Srv-2
+All-Servers,group,,,All servers — top-level nested group,DMZ-All NetOps

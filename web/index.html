@@ -160,7 +160,7 @@
   <span class="legend-item"><span class="legend-dot" style="background:var(--mixed)"></span>Mixed</span>
   <span class="legend-item"><span class="legend-dot" style="background:var(--disabled)"></span>Disabled</span>
   <span class="legend-item"><span class="legend-dot" style="background:var(--any)"></span>ANY</span>
-  <span class="legend-item" style="margin-left:6px;font-style:italic">Click subnet to expand · Click again to collapse · Drag to reposition</span>
+  <span class="legend-item" style="margin-left:6px;font-style:italic">Click group to view details · Use panel button to expand/collapse · Drag to reposition</span>
 </div>
 
 <div id="main">
@@ -231,7 +231,7 @@ function buildStyle() {
       }
     },
     {
-      selector: 'node[?isSubnet]:not([?virtual])',
+      selector: 'node[?isGroup]:not([?virtual])',
       style: { 'width': 36, 'height': 36, 'border-width': 3 }
     },
     // ── expanded compound ──
@@ -356,7 +356,7 @@ function buildGraph(data) {
     if (!showAny && isVirtual(n.id)) continue;
     elements.push({ data: {
       id: n.id, label: n.label, cidr: n.cidr,
-      virtual: n.virtual || false, isSubnet: n.isSubnet || false,
+      virtual: n.virtual || false, isGroup: n.isGroup || false,
       memberCount: n.memberCount || 0, comment: n.comment || '',
       members: n.members || [],
     }});
@@ -485,9 +485,6 @@ function onNodeTap(e) {
     return;
   }
 
-  if (!data.virtual && data.members && data.members.length > 0) {
-    expandedNodes.has(data.id) ? collapseNode(data.id) : expandNode(data.id);
-  }
   focusNode(node);
   showNodePanel(data);
 }
@@ -519,12 +516,16 @@ function showNodePanel(data) {
   // members
   html += `<div class="panel-col"><div class="col-title">Members (${members.length})</div>`;
   if (members.length > 0) {
+    const expanded = expandedNodes.has(data.id);
+    html += `<button class="tb-btn expand-toggle-btn" style="margin-bottom:8px;padding:3px 10px;font-size:11px">
+      ${expanded ? '▼ Collapse in graph' : '▶ Expand in graph'}
+    </button>`;
     html += '<table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Address</th></tr></thead><tbody>';
     for (const m of members)
       html += `<tr><td>${esc(m.name)}</td><td>${esc(m.type)}</td><td style="font-family:monospace;font-size:10px">${esc(m.address)}</td></tr>`;
     html += '</tbody></table>';
   } else if (data.virtual) {
-    html += '<p style="font-size:11px;color:var(--text-dim)">Represents any address not in a specific subnet.</p>';
+    html += '<p style="font-size:11px;color:var(--text-dim)">Represents any address.</p>';
   } else {
     html += '<p style="font-size:11px;color:var(--text-dim)">No member objects.</p>';
   }
@@ -548,6 +549,14 @@ function showNodePanel(data) {
   if (data.comment) html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">💬 ${esc(data.comment)}</div>`;
 
   document.getElementById('panel-body').innerHTML = html;
+  const expandBtn = document.querySelector('#panel-body .expand-toggle-btn');
+  if (expandBtn) {
+    expandBtn.addEventListener('click', () => {
+      const id = data.id;
+      expandedNodes.has(id) ? collapseNode(id) : expandNode(id);
+      expandBtn.textContent = expandedNodes.has(id) ? '▼ Collapse in graph' : '▶ Expand in graph';
+    });
+  }
   openPanel();
 }
 
@@ -561,10 +570,10 @@ function showMemberPanel(data) {
       <tr><td style="color:var(--text-dim);width:72px">Type</td><td>${esc(data.type)}</td></tr>
       <tr><td style="color:var(--text-dim)">Address</td><td style="font-family:monospace">${esc(data.address)}</td></tr>
       ${data.comment?`<tr><td style="color:var(--text-dim)">Comment</td><td>${esc(data.comment)}</td></tr>`:''}
-      <tr><td style="color:var(--text-dim)">Subnet</td><td>${esc(data.parentSubnet)}</td></tr>
+      <tr><td style="color:var(--text-dim)">Group</td><td>${esc(data.parentSubnet)}</td></tr>
     </tbody></table></div>`;
 
-  html += `<div class="panel-col"><div class="col-title">Subnet Policies (${subPols.length})</div>`;
+  html += `<div class="panel-col"><div class="col-title">Group Policies (${subPols.length})</div>`;
   if (subPols.length > 0) {
     html += '<table class="data-table"><thead><tr><th>#</th><th>Name</th><th>Action</th><th>Status</th></tr></thead><tbody>';
     for (const p of subPols) {

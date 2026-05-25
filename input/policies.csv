@@ -1,16 +1,24 @@
 #,Name,From,To,Source,Destination,Service,Action,Status,NAT,Comment
-1,LAN-to-DMZ-Web,port1,port2,LAN,Server-Web,HTTP HTTPS,ACCEPT,enable,,LAN users access web server
-2,LAN-to-Internet,port1,port3,LAN-Users,all,HTTP HTTPS DNS,ACCEPT,enable,enable,Internet access with NAT
-3,Block-DMZ-to-LAN,port2,port1,DMZ,LAN,ALL,DENY,enable,,Prevent DMZ from reaching internal LAN
-4,Web-to-DB,port2,port2,Server-Web,Server-DB,MySQL,ACCEPT,enable,,Web server to database
-5,Mail-Inbound,port3,port2,all,Server-Mail,SMTP,ACCEPT,enable,,Allow inbound mail from internet
-6,Mail-Outbound,port2,port3,Server-Mail,all,SMTP,ACCEPT,enable,enable,Outbound mail with NAT
-7,MGMT-to-DMZ,port4,port2,MGMT-Devices,DMZ-Servers,SSH HTTPS,ACCEPT,enable,,Admin access to DMZ servers
-8,MGMT-to-LAN,port4,port1,MGMT-Devices,LAN,SSH HTTPS,ACCEPT,enable,,Admin access to LAN
-9,VPN-to-LAN,any,port1,Range-VPN,LAN,ALL,ACCEPT,enable,,VPN clients full LAN access
-10,VPN-to-DMZ,any,port2,Range-VPN,DMZ,HTTP HTTPS SSH,ACCEPT,enable,,VPN clients DMZ access
-11,Block-WAN-Inbound,port3,port1,all,LAN,ALL,DENY,enable,,Block all unsolicited inbound
-12,Block-WAN-to-MGMT,port3,port4,all,MGMT,ALL,DENY,enable,,Protect management network
-13,Disabled-Test-Rule,port1,port3,LAN,all,FTP,ACCEPT,disable,,FTP rule disabled for testing
-14,DMZ-to-Internet,port2,port3,DMZ-Servers,all,HTTP HTTPS DNS,ACCEPT,enable,enable,DMZ servers internet access
-15,LAN-to-Mail,port1,port2,LAN-Users,Server-Mail,SMTP IMAP POP3,ACCEPT,enable,,Internal mail access
+1,Corp-to-Web,port1,port3,Corp-Users,DMZ-Web,HTTP HTTPS,ACCEPT,enable,,Corporate users access web tier
+2,Dev-to-DMZ-Full,port2,port3,Dev-Users,DMZ-All,HTTP HTTPS SSH MySQL PostgreSQL,ACCEPT,enable,,Developers get full DMZ access (nested group)
+3,Block-Corp-to-DB,port1,port3,Corp-Users,DMZ-DB,ALL,DENY,enable,,Block corporate direct access to DB tier
+4,Web-to-App,port3,port3,DMZ-Web,DMZ-App,HTTP HTTPS,ACCEPT,enable,,Web tier to application tier
+5,App-to-DB,port3,port3,DMZ-App,DMZ-DB,MySQL PostgreSQL,ACCEPT,enable,,Application tier to database tier
+6,DB-to-Backup,port3,port4,DMZ-DB,Backup-Srv,TCP/10000,ACCEPT,enable,,DB servers push backups (DB-Srv-1 and DB-Srv-2 are in both DMZ-DB and Backup-Systems)
+7,Internet-to-Web,port5,port3,all,DMZ-Web,HTTP HTTPS,ACCEPT,enable,,Public internet to web servers
+8,Block-Internet-to-App,port5,port3,all,DMZ-App,ALL,DENY,enable,,Block direct internet to app tier
+9,Block-Internet-to-DB,port5,port3,all,DMZ-DB,ALL,DENY,enable,,Block internet to DB tier
+10,Corp-to-Internet,port1,port5,Corp-Users,all,HTTP HTTPS DNS,ACCEPT,enable,enable,Corporate internet access (NAT)
+11,Dev-to-Internet,port2,port5,Dev-Users,all,HTTP HTTPS DNS,ACCEPT,enable,enable,Dev internet access with NAT
+12,VPN-to-Corp,any,port1,VPN-Pool,Corp-LAN,ALL,ACCEPT,enable,,VPN remote access to corporate LAN
+13,VPN-to-Dev,any,port2,VPN-Pool,Dev-LAN,ALL,ACCEPT,enable,,VPN remote access to dev LAN
+14,NetOps-to-All,port4,any,NetOps,All-Servers,SSH HTTPS ICMP,ACCEPT,enable,,NetOps full management access to all servers (nested group)
+15,Block-MGMT-Internet,port5,port4,all,MGMT,ALL,DENY,enable,,Protect management network from internet
+16,Backup-to-Internet,port4,port5,Backup-Systems,External-DNS,HTTPS,ACCEPT,enable,enable,Backup offsite replication — Backup-Srv and DB servers
+17,Block-Dev-to-Corp,port2,port1,Dev-Users,Corp-Users,ALL,DENY,enable,,Dev users cannot reach corporate directly
+18,Block-DMZ-to-MGMT,port3,port4,DMZ-All,MGMT,ALL,DENY,enable,,DMZ servers cannot reach management network
+19,Monitoring,port4,port3,NetOps,DMZ-All,ICMP SNMP,ACCEPT,enable,,Network monitoring from management to all DMZ
+20,Corp-to-App,port1,port3,Corp-Users,DMZ-App,HTTPS,ACCEPT,enable,,Corporate access to internal app portal
+21,All-Internal-to-DNS,any,any,All-Internal,External-DNS,DNS,ACCEPT,enable,,All users can reach public DNS
+22,Block-VPN-to-MGMT,any,port4,VPN-Pool,MGMT,ALL,DENY,enable,,VPN clients cannot access management network
+23,Disabled-Legacy-FTP,port1,port3,Corp-Users,DMZ-Web,FTP,ACCEPT,disable,,Legacy FTP rule — disabled
