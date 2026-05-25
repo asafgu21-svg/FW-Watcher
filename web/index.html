@@ -72,7 +72,7 @@
     flex-shrink: 0; flex-wrap: wrap;
   }
   .legend-item { display: flex; align-items: center; gap: 5px; }
-  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .legend-dot  { width: 8px; height: 8px; border-radius: 50%; }
   .legend-line { width: 20px; height: 3px; border-radius: 2px; }
 
   /* ── MAIN LAYOUT ── */
@@ -90,7 +90,6 @@
     transition: max-height .3s ease;
   }
   #detail-panel.open { max-height: 320px; }
-
   #detail-inner { padding: 14px 20px 16px; overflow-y: auto; height: 100%; }
 
   .panel-header {
@@ -98,7 +97,7 @@
     margin-bottom: 12px;
   }
   .panel-title { font-size: 14px; font-weight: 600; color: #fff; }
-  .panel-cidr { font-size: 12px; color: var(--text-dim); font-family: 'Consolas', monospace; }
+  .panel-sub   { font-size: 12px; color: var(--text-dim); font-family: 'Consolas', monospace; margin-top: 2px; }
   #panel-close {
     background: none; border: none; color: var(--text-dim); cursor: pointer;
     font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px;
@@ -106,10 +105,10 @@
   }
   #panel-close:hover { color: #fff; }
 
-  /* ── TWO COLUMN INSIDE PANEL ── */
-  .panel-cols { display: flex; gap: 24px; flex-wrap: wrap; }
-  .panel-col { flex: 1; min-width: 220px; }
-  .col-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text-dim); margin-bottom: 8px; }
+  .panel-cols  { display: flex; gap: 24px; flex-wrap: wrap; }
+  .panel-col   { flex: 1; min-width: 220px; }
+  .col-title   { font-size: 11px; font-weight: 600; text-transform: uppercase;
+                 letter-spacing: .6px; color: var(--text-dim); margin-bottom: 8px; }
 
   /* ── TABLES ── */
   .data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -122,11 +121,6 @@
   .data-table tr:last-child td { border-bottom: none; }
   .data-table tr:hover td { background: #162334; }
 
-  .badge-accept  { color: var(--accept); font-weight: 600; }
-  .badge-deny    { color: var(--deny);   font-weight: 600; }
-  .badge-mixed   { color: var(--mixed);  font-weight: 600; }
-  .badge-disabled{ color: var(--disabled); }
-
   .tag {
     display: inline-block; padding: 1px 7px; border-radius: 10px;
     font-size: 10px; font-weight: 600;
@@ -138,7 +132,7 @@
   .tag-on  { background: #0c2e1c; color: var(--accept); border: 1px solid #1a5c37; }
   .tag-off { background: #1a2530; color: var(--disabled); border: 1px solid #2e3f50; }
 
-  /* ── EMPTY / WELCOME ── */
+  /* ── WELCOME ── */
   #welcome {
     position: absolute; inset: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -158,7 +152,6 @@
   }
   #toast.show { opacity: 1; }
 
-  /* scrollbar */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #2a3f55; border-radius: 3px; }
@@ -170,27 +163,24 @@
 <div id="toolbar">
   <span class="logo">⬡ FW Watcher</span>
 
-  <button class="tb-btn" id="btn-addr" title="Load addresses CSV">
+  <button class="tb-btn" id="btn-addr">
     <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L7.5 13.293V1.5A.5.5 0 0 1 8 1z"/></svg>
     Load Addresses
   </button>
-
-  <button class="tb-btn" id="btn-pol" title="Load policies CSV">
+  <button class="tb-btn" id="btn-pol">
     <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L7.5 13.293V1.5A.5.5 0 0 1 8 1z"/></svg>
     Load Policies
   </button>
-
-  <button class="tb-btn" id="btn-fit" title="Fit to view">
+  <button class="tb-btn" id="btn-fit">
     <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1h4a.5.5 0 0 1 0 1H2v3.5a.5.5 0 0 1-1 0V1.5A.5.5 0 0 1 1.5 1zm13 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V2h-3.5a.5.5 0 0 1 0-1h4zM1 10.5a.5.5 0 0 1 .5-.5h.5v3.5h3.5a.5.5 0 0 1 0 1h-4A.5.5 0 0 1 1 14.5v-4zm13.5-.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-4a.5.5 0 0 1 0-1H14v-3.5a.5.5 0 0 1 .5-.5z"/></svg>
     Fit
   </button>
-
-  <button class="tb-btn danger" id="btn-clear" title="Clear all">
+  <button class="tb-btn danger" id="btn-clear">
     <svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>
     Clear
   </button>
 
-  <button class="tb-btn" id="any-toggle" title="Toggle ANY node">⬡ ANY Node</button>
+  <button class="tb-btn" id="any-toggle">⬡ ANY Node</button>
 
   <div class="tb-sep"></div>
   <input id="search" type="text" placeholder="🔍  Search node…" autocomplete="off" />
@@ -209,8 +199,7 @@
   <span class="legend-item"><span class="legend-dot" style="background:var(--mixed)"></span> Mixed</span>
   <span class="legend-item"><span class="legend-dot" style="background:var(--disabled)"></span> Disabled</span>
   <span class="legend-item"><span class="legend-dot" style="background:var(--any)"></span> ANY catch-all</span>
-  <span class="legend-item"><span class="legend-line" style="background:var(--accent)"></span> Subnet node</span>
-  <span class="legend-item"><span class="legend-line" style="background:var(--text-dim);opacity:.6"></span> Host/Range</span>
+  <span class="legend-item" style="margin-left:8px;font-style:italic;color:var(--text-dim)">Click a subnet to expand its members</span>
 </div>
 
 <!-- MAIN -->
@@ -229,7 +218,7 @@
       <div class="panel-header">
         <div>
           <div class="panel-title" id="panel-title">—</div>
-          <div class="panel-cidr" id="panel-cidr"></div>
+          <div class="panel-sub"   id="panel-sub"></div>
         </div>
         <button id="panel-close" title="Close">✕</button>
       </div>
@@ -245,7 +234,7 @@
 let cy = null;
 let showAny = true;
 let topologyData = { nodes: [], edges: [] };
-let focusedId = null;
+let expandedNodes = new Map(); // nodeId → [childId, …]
 
 // ── colour map ────────────────────────────────────────────────────────────────
 const EDGE_COLOR = {
@@ -254,16 +243,15 @@ const EDGE_COLOR = {
   mixed:    '#f59e0b',
   disabled: '#607d8b',
 };
-const NODE_ACCEPT_RING = '#17c97e';
 
 // ── Cytoscape stylesheet ──────────────────────────────────────────────────────
 function buildStyle() {
   return [
+    // base node
     {
       selector: 'node',
       style: {
-        'width': 28,
-        'height': 28,
+        'width': 28, 'height': 28,
         'shape': 'ellipse',
         'background-color': '#162334',
         'border-width': 2.5,
@@ -276,36 +264,94 @@ function buildStyle() {
         'font-family': 'Segoe UI, system-ui, sans-serif',
         'font-weight': '600',
         'text-margin-y': -6,
-        'text-max-width': 140,
+        'text-max-width': 150,
         'text-wrap': 'ellipsis',
-        'transition-property': 'opacity, border-color, border-width, background-color',
-        'transition-duration': '180ms',
+        'transition-property': 'opacity, border-color, border-width, background-color, width, height',
+        'transition-duration': '200ms',
         'overlay-padding': 6,
+        'z-index': 2,
       }
     },
+    // virtual (ANY) node
     {
       selector: 'node[?virtual]',
       style: {
         'border-color': '#a855f7',
         'background-color': '#1d0d33',
-        'width': 22,
-        'height': 22,
+        'width': 22, 'height': 22,
         'font-size': 10,
         'color': '#c4a0f0',
         'border-style': 'dashed',
       }
     },
+    // subnet node (slightly bigger)
     {
       selector: 'node[?isSubnet]:not([?virtual])',
       style: {
-        'width': 34,
-        'height': 34,
+        'width': 36, 'height': 36,
         'border-width': 3,
       }
     },
+    // ── expanded compound container ──
+    {
+      selector: 'node.expanded',
+      style: {
+        'shape': 'roundrectangle',
+        'background-color': '#060f1a',
+        'background-opacity': 0.85,
+        'border-width': 1.5,
+        'border-color': '#1e5fa0',
+        'border-style': 'dashed',
+        'label': 'data(label)',
+        'text-valign': 'top',
+        'text-halign': 'center',
+        'text-margin-y': 10,
+        'color': '#5ba3d9',
+        'font-size': 11,
+        'font-weight': '700',
+        'padding': '30px',
+        'min-width': 80,
+        'min-height': 60,
+        'width': 'label',
+        'height': 'label',
+        'z-index': 1,
+      }
+    },
+    // ── child (member) nodes inside expanded subnet ──
+    {
+      selector: 'node[?isChild]',
+      style: {
+        'width': 16, 'height': 16,
+        'shape': 'ellipse',
+        'background-color': '#0b1e30',
+        'border-width': 1.5,
+        'border-color': '#2a6496',
+        'label': 'data(label)',
+        'text-valign': 'bottom',
+        'text-halign': 'center',
+        'text-margin-y': 4,
+        'color': '#7aa8cc',
+        'font-size': 9,
+        'font-weight': '500',
+        'text-max-width': 90,
+        'text-wrap': 'ellipsis',
+        'cursor': 'pointer',
+        'z-index': 3,
+        'transition-property': 'border-color, background-color, opacity',
+        'transition-duration': '150ms',
+      }
+    },
+    {
+      selector: 'node[?isChild]:active, node[?isChild].child-hover',
+      style: {
+        'border-color': '#00d4ff',
+        'background-color': '#0d2540',
+      }
+    },
+    // focus states
     {
       selector: 'node.dimmed',
-      style: { 'opacity': 0.12 }
+      style: { 'opacity': 0.1 }
     },
     {
       selector: 'node.highlighted',
@@ -322,11 +368,21 @@ function buildStyle() {
         'border-color': '#00d4ff',
         'border-width': 4,
         'background-color': '#0a2540',
-        'width': 40,
-        'height': 40,
+        'width': 42, 'height': 42,
         'opacity': 1,
       }
     },
+    // focused expanded compound
+    {
+      selector: 'node.expanded.focused',
+      style: {
+        'border-color': '#00d4ff',
+        'border-width': 2,
+        'border-style': 'solid',
+        'background-color': '#091525',
+      }
+    },
+    // edges
     {
       selector: 'edge',
       style: {
@@ -336,9 +392,9 @@ function buildStyle() {
         'target-arrow-shape': 'triangle',
         'arrow-scale': 0.9,
         'curve-style': 'bezier',
-        'control-point-step-size': 30,
-        'opacity': 0.75,
-        'transition-property': 'opacity, width, line-color',
+        'control-point-step-size': 20,
+        'opacity': 0.7,
+        'transition-property': 'opacity, width',
         'transition-duration': '180ms',
         'overlay-padding': 8,
       }
@@ -353,11 +409,7 @@ function buildStyle() {
     },
     {
       selector: 'edge.highlighted',
-      style: { 'opacity': 1, 'width': 3 }
-    },
-    {
-      selector: 'edge:selected',
-      style: { 'width': 3.5, 'opacity': 1 }
+      style: { 'opacity': 1, 'width': 3.2 }
     },
   ];
 }
@@ -365,11 +417,12 @@ function buildStyle() {
 // ── build graph ───────────────────────────────────────────────────────────────
 function buildGraph(data) {
   if (cy) cy.destroy();
+  expandedNodes.clear();
 
   const elements = [];
 
   for (const n of data.nodes) {
-    if (!showAny && (n.id === '__ANY__' || n.id.startsWith('[') && n.id.endsWith(']'))) continue;
+    if (!showAny && isVirtual(n.id)) continue;
     elements.push({
       data: {
         id: n.id,
@@ -405,13 +458,31 @@ function buildGraph(data) {
     container: document.getElementById('cy'),
     elements,
     style: buildStyle(),
-    layout: { name: 'cose', animate: true, animationDuration: 600, padding: 80, nodeRepulsion: 8000, idealEdgeLength: 160, gravity: 1.2 },
+    layout: {
+      name: 'cose',
+      animate: true,
+      animationDuration: 700,
+      padding: 100,
+      nodeRepulsion: 500000,  // high repulsion → nodes spread far apart
+      idealEdgeLength: 300,
+      edgeElasticity: 150,
+      gravity: 0.4,
+      numIter: 1500,
+      initialTemp: 1200,
+      coolingFactor: 0.995,
+      minTemp: 1.0,
+      nodeOverlap: 50,
+      randomize: false,
+      componentSpacing: 120,
+    },
     wheelSensitivity: 0.3,
+    minZoom: 0.1,
+    maxZoom: 4,
   });
 
   cy.on('tap', 'node', onNodeTap);
   cy.on('tap', 'edge', onEdgeTap);
-  cy.on('tap', function(e) { if (e.target === cy) clearFocus(); });
+  cy.on('tap', e => { if (e.target === cy) clearFocus(); });
 
   document.getElementById('welcome').style.display =
     elements.length > 0 ? 'none' : 'flex';
@@ -419,98 +490,165 @@ function buildGraph(data) {
   updateStats();
 }
 
+// ── expand / collapse ─────────────────────────────────────────────────────────
+function expandNode(nodeId) {
+  const node = cy.getElementById(nodeId);
+  const members = node.data('members') || [];
+  if (members.length === 0) return;
+
+  const pos = node.position();
+  const cols = Math.min(members.length, 3);
+  const GAPX = 85, GAPY = 70;
+
+  const toAdd = [];
+  const childIds = [];
+
+  members.forEach((m, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const rowCount = Math.min(members.length - row * cols, cols);
+    const cx = pos.x + (col - (rowCount - 1) / 2) * GAPX;
+    const cy_y = pos.y + 24 + row * GAPY;
+
+    const childId = `__m__${nodeId}__${i}`;
+    childIds.push(childId);
+
+    toAdd.push({
+      data: {
+        id: childId,
+        parent: nodeId,
+        label: m.name,
+        address: m.address,
+        type: m.type,
+        comment: m.comment || '',
+        isChild: true,
+        parentSubnet: nodeId,
+      },
+      position: { x: cx, y: cy_y },
+    });
+  });
+
+  cy.add(toAdd);
+  node.addClass('expanded');
+  expandedNodes.set(nodeId, childIds);
+}
+
+function collapseNode(nodeId) {
+  const childIds = expandedNodes.get(nodeId);
+  if (!childIds) return;
+
+  cy.remove(cy.nodes().filter(n => childIds.includes(n.id())));
+  cy.getElementById(nodeId).removeClass('expanded');
+  expandedNodes.delete(nodeId);
+}
+
 // ── focus logic ───────────────────────────────────────────────────────────────
 function clearFocus() {
   if (!cy) return;
-  focusedId = null;
   cy.elements().removeClass('dimmed highlighted focused');
-  cy.elements().style('opacity', '');
   closePanel();
 }
 
 function focusNode(node) {
-  if (!cy) return;
-  focusedId = node.id();
-
   const neighborhood = node.neighborhood();
-  const relevant = neighborhood.union(node);
+  const descendants  = node.descendants();           // children inside compound
+  const relevant     = neighborhood.union(node).union(descendants);
 
   cy.elements().addClass('dimmed').removeClass('highlighted focused');
   relevant.removeClass('dimmed').addClass('highlighted');
   node.removeClass('highlighted').addClass('focused');
-
-  // brighten connected edges
   node.connectedEdges().removeClass('dimmed').addClass('highlighted');
 }
 
 function focusEdge(edge) {
-  if (!cy) return;
-  focusedId = edge.id();
-
   cy.elements().addClass('dimmed').removeClass('highlighted focused');
   edge.removeClass('dimmed').addClass('highlighted');
   edge.source().removeClass('dimmed').addClass('highlighted');
   edge.target().removeClass('dimmed').addClass('highlighted');
+  edge.source().descendants().removeClass('dimmed');
+  edge.target().descendants().removeClass('dimmed');
 }
 
 // ── tap handlers ──────────────────────────────────────────────────────────────
 function onNodeTap(e) {
   const node = e.target;
+  const data = node.data();
+
+  // child node inside an expanded subnet
+  if (data.isChild) {
+    showMemberPanel(data);
+    // highlight parent compound + its edges
+    const parent = cy.getElementById(data.parentSubnet);
+    if (parent.length) focusNode(parent);
+    return;
+  }
+
+  // subnet with members: toggle expand
+  if (!data.virtual && data.members && data.members.length > 0) {
+    if (expandedNodes.has(data.id)) {
+      collapseNode(data.id);
+    } else {
+      expandNode(data.id);
+    }
+  }
+
   focusNode(node);
-  showNodePanel(node.data());
+  showNodePanel(data);
 }
 
 function onEdgeTap(e) {
-  const edge = e.target;
-  focusEdge(edge);
-  showEdgePanel(edge.data());
+  focusEdge(e.target);
+  showEdgePanel(e.target.data());
 }
 
 // ── detail panel ──────────────────────────────────────────────────────────────
-function openPanel() {
-  document.getElementById('detail-panel').classList.add('open');
-}
-function closePanel() {
-  document.getElementById('detail-panel').classList.remove('open');
-}
+function openPanel()  { document.getElementById('detail-panel').classList.add('open'); }
+function closePanel() { document.getElementById('detail-panel').classList.remove('open'); }
 
-document.getElementById('panel-close').addEventListener('click', () => {
-  clearFocus();
-});
+document.getElementById('panel-close').addEventListener('click', clearFocus);
+
+function setHeader(title, sub) {
+  document.getElementById('panel-title').textContent = title;
+  document.getElementById('panel-sub').textContent   = sub || '';
+}
 
 function showNodePanel(data) {
-  document.getElementById('panel-title').textContent = data.id === '__ANY__'
-    ? '⬡ ANY — catch-all node'
-    : data.label;
-  document.getElementById('panel-cidr').textContent = data.cidr || (data.virtual ? 'Virtual / catch-all' : '');
+  const isAny = data.id === '__ANY__';
+  setHeader(
+    isAny ? '⬡ ANY — catch-all node' : data.label,
+    data.cidr || (data.virtual ? 'Virtual / catch-all' : '')
+  );
 
   let html = '<div class="panel-cols">';
 
-  // left: members
-  html += '<div class="panel-col"><div class="col-title">Members (' + (data.members ? data.members.length : 0) + ')</div>';
-  if (data.members && data.members.length > 0) {
+  // members column
+  const members = data.members || [];
+  html += `<div class="panel-col"><div class="col-title">Members (${members.length})</div>`;
+  if (members.length > 0) {
     html += '<table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Address</th></tr></thead><tbody>';
-    for (const m of data.members) {
-      html += `<tr><td>${esc(m.name)}</td><td>${esc(m.type)}</td><td style="font-family:monospace">${esc(m.address)}</td></tr>`;
+    for (const m of members) {
+      html += `<tr><td>${esc(m.name)}</td><td>${esc(m.type)}</td><td style="font-family:monospace;font-size:10px">${esc(m.address)}</td></tr>`;
     }
     html += '</tbody></table>';
+    if (members.length > 0 && !expandedNodes.has(data.id)) {
+      html += `<div style="margin-top:6px;font-size:10px;color:var(--text-dim)">↑ Click node on graph to expand members</div>`;
+    }
   } else if (data.virtual) {
-    html += '<p style="font-size:11px;color:var(--text-dim);padding:4px 0">Represents any address not belonging to a specific subnet.</p>';
+    html += '<p style="font-size:11px;color:var(--text-dim);padding:4px 0">Represents any address not in a specific subnet.</p>';
   } else {
     html += '<p style="font-size:11px;color:var(--text-dim);padding:4px 0">No member objects.</p>';
   }
   html += '</div>';
 
-  // right: related policies
-  const relPolicies = getRelatedPolicies(data.id);
-  html += '<div class="panel-col"><div class="col-title">Related Policies (' + relPolicies.length + ')</div>';
-  if (relPolicies.length > 0) {
+  // policies column
+  const relPols = getRelatedPolicies(data.id);
+  html += `<div class="panel-col"><div class="col-title">Related Policies (${relPols.length})</div>`;
+  if (relPols.length > 0) {
     html += '<table class="data-table"><thead><tr><th>#</th><th>Name</th><th>Action</th><th>Status</th></tr></thead><tbody>';
-    for (const p of relPolicies) {
+    for (const p of relPols) {
       const ac = p.action.toLowerCase();
       html += `<tr>
-        <td>${esc(p.id)}</td>
-        <td>${esc(p.name)}</td>
+        <td>${esc(p.id)}</td><td>${esc(p.name)}</td>
         <td><span class="tag tag-${ac}">${esc(p.action)}</span></td>
         <td><span class="tag ${p.enabled ? 'tag-on' : 'tag-off'}">${p.enabled ? 'ON' : 'OFF'}</span></td>
       </tr>`;
@@ -529,21 +667,53 @@ function showNodePanel(data) {
   openPanel();
 }
 
+function showMemberPanel(data) {
+  setHeader(data.label, data.address || '');
+
+  let html = '<div class="panel-cols">';
+
+  html += '<div class="panel-col"><div class="col-title">Details</div>';
+  html += `<table class="data-table"><tbody>
+    <tr><td style="color:var(--text-dim);width:80px">Type</td><td>${esc(data.type)}</td></tr>
+    <tr><td style="color:var(--text-dim)">Address</td><td style="font-family:monospace">${esc(data.address)}</td></tr>
+    ${data.comment ? `<tr><td style="color:var(--text-dim)">Comment</td><td>${esc(data.comment)}</td></tr>` : ''}
+    <tr><td style="color:var(--text-dim)">Subnet</td><td>${esc(data.parentSubnet)}</td></tr>
+  </tbody></table></div>`;
+
+  const subnetPols = getRelatedPolicies(data.parentSubnet);
+  html += `<div class="panel-col"><div class="col-title">Subnet Policies (${subnetPols.length})</div>`;
+  if (subnetPols.length > 0) {
+    html += '<table class="data-table"><thead><tr><th>#</th><th>Name</th><th>Action</th><th>Status</th></tr></thead><tbody>';
+    for (const p of subnetPols) {
+      const ac = p.action.toLowerCase();
+      html += `<tr>
+        <td>${esc(p.id)}</td><td>${esc(p.name)}</td>
+        <td><span class="tag tag-${ac}">${esc(p.action)}</span></td>
+        <td><span class="tag ${p.enabled ? 'tag-on' : 'tag-off'}">${p.enabled ? 'ON' : 'OFF'}</span></td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+  } else {
+    html += '<p style="font-size:11px;color:var(--text-dim);padding:4px 0">No policies found.</p>';
+  }
+  html += '</div></div>';
+
+  document.getElementById('panel-body').innerHTML = html;
+  openPanel();
+}
+
 function showEdgePanel(data) {
-  document.getElementById('panel-title').textContent =
-    `${data.source}  →  ${data.target}`;
-  document.getElementById('panel-cidr').textContent =
-    `${data.count} polic${data.count === 1 ? 'y' : 'ies'}  ·  ${data.action.toUpperCase()}`;
+  setHeader(`${data.source}  →  ${data.target}`,
+    `${data.count} polic${data.count === 1 ? 'y' : 'ies'}  ·  ${data.action.toUpperCase()}`);
 
   let html = '<table class="data-table"><thead><tr><th>#</th><th>Name</th><th>Source</th><th>Destination</th><th>Service</th><th>Action</th><th>Status</th></tr></thead><tbody>';
   for (const p of data.policies) {
     const ac = p.action.toLowerCase();
     html += `<tr>
-      <td>${esc(p.id)}</td>
-      <td>${esc(p.name)}</td>
-      <td style="font-size:10px">${esc((p.sources || []).join(', '))}</td>
-      <td style="font-size:10px">${esc((p.destinations || []).join(', '))}</td>
-      <td style="font-size:10px">${esc((p.services || []).join(', ') || 'any')}</td>
+      <td>${esc(p.id)}</td><td>${esc(p.name)}</td>
+      <td style="font-size:10px">${esc((p.sources||[]).join(', '))}</td>
+      <td style="font-size:10px">${esc((p.destinations||[]).join(', '))}</td>
+      <td style="font-size:10px">${esc((p.services||[]).join(', ')||'any')}</td>
       <td><span class="tag tag-${ac}">${esc(p.action)}</span></td>
       <td><span class="tag ${p.enabled ? 'tag-on' : 'tag-off'}">${p.enabled ? 'ON' : 'OFF'}</span></td>
     </tr>`;
@@ -553,20 +723,50 @@ function showEdgePanel(data) {
   openPanel();
 }
 
+// ── helpers ───────────────────────────────────────────────────────────────────
 function getRelatedPolicies(nodeId) {
-  const policies = [];
-  const seen = new Set();
+  const seen = new Set(), result = [];
   for (const e of topologyData.edges) {
     if (e.source === nodeId || e.target === nodeId) {
       for (const p of e.policies) {
-        if (!seen.has(p.id)) { seen.add(p.id); policies.push(p); }
+        if (!seen.has(p.id)) { seen.add(p.id); result.push(p); }
       }
     }
   }
-  return policies;
+  return result;
 }
 
-// ── toolbar handlers ──────────────────────────────────────────────────────────
+function isVirtual(id) {
+  return id === '__ANY__' || (id.startsWith('[') && id.endsWith(']'));
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function applyTopology(data) {
+  topologyData = data;
+  buildGraph(data);
+}
+
+function updateStats() {
+  const n = topologyData.nodes ? topologyData.nodes.length : 0;
+  const e = topologyData.edges ? topologyData.edges.length : 0;
+  document.getElementById('stats').textContent =
+    n > 0 ? `${n} nodes · ${e} connections` : 'No data loaded';
+}
+
+// ── toolbar wiring ────────────────────────────────────────────────────────────
 document.getElementById('btn-addr').addEventListener('click', () =>
   document.getElementById('file-addr').click());
 document.getElementById('btn-pol').addEventListener('click', () =>
@@ -576,9 +776,8 @@ document.getElementById('file-addr').addEventListener('change', async function()
   if (!this.files[0]) return;
   const text = await this.files[0].text();
   this.value = '';
-  const res = await fetch('/api/upload/addresses', { method: 'POST', body: text });
-  const data = await res.json();
-  applyTopology(data);
+  const res  = await fetch('/api/upload/addresses', { method: 'POST', body: text });
+  applyTopology(await res.json());
   toast('Addresses loaded');
 });
 
@@ -586,9 +785,8 @@ document.getElementById('file-pol').addEventListener('change', async function() 
   if (!this.files[0]) return;
   const text = await this.files[0].text();
   this.value = '';
-  const res = await fetch('/api/upload/policies', { method: 'POST', body: text });
-  const data = await res.json();
-  applyTopology(data);
+  const res  = await fetch('/api/upload/policies', { method: 'POST', body: text });
+  applyTopology(await res.json());
   toast('Policies loaded');
 });
 
@@ -600,7 +798,6 @@ document.getElementById('btn-clear').addEventListener('click', async () => {
   await fetch('/api/clear', { method: 'POST' });
   topologyData = { nodes: [], edges: [] };
   buildGraph(topologyData);
-  clearFocus();
   updateStats();
   toast('Cleared');
 });
@@ -616,53 +813,19 @@ document.getElementById('search').addEventListener('input', function() {
   const q = this.value.trim().toLowerCase();
   if (!q) { cy.elements().removeClass('dimmed highlighted focused'); return; }
   cy.nodes().forEach(n => {
+    if (n.data('isChild')) return;
     const match = n.id().toLowerCase().includes(q);
     n.removeClass('dimmed highlighted focused');
-    if (match) n.addClass('highlighted');
-    else n.addClass('dimmed');
+    n.addClass(match ? 'highlighted' : 'dimmed');
   });
 });
-
-// ── helpers ───────────────────────────────────────────────────────────────────
-function applyTopology(data) {
-  topologyData = data;
-  buildGraph(data);
-}
-
-function updateStats() {
-  const n = topologyData.nodes ? topologyData.nodes.length : 0;
-  const e = topologyData.edges ? topologyData.edges.length : 0;
-  document.getElementById('stats').textContent =
-    n > 0 ? `${n} nodes · ${e} connections` : 'No data loaded';
-}
-
-function esc(s) {
-  if (!s) return '';
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-let toastTimer = null;
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
-}
 
 // ── init ──────────────────────────────────────────────────────────────────────
 document.getElementById('any-toggle').classList.add('active');
 
-// Load existing topology if server already has data
 fetch('/api/topology')
   .then(r => r.json())
-  .then(data => {
-    if (data.nodes && data.nodes.length > 0) applyTopology(data);
-  })
+  .then(data => { if (data.nodes && data.nodes.length > 0) applyTopology(data); })
   .catch(() => {});
 </script>
 </body>
