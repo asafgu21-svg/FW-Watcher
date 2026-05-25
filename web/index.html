@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FW Watcher</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0f1923;
+    --panel-bg:  #131f2e;
+    --toolbar-bg:#0a1520;
+    --border:    #1e3a52;
+    --text:      #c9d8e8;
+    --text-dim:  #4a6580;
+    --accent:    #0078d4;
+    --accept:    #17c97e;
+    --deny:      #f04060;
+    --mixed:     #f59e0b;
+    --disabled:  #607d8b;
+    --any:       #a855f7;
+    --highlight: #00d4ff;
+  }
+
+  html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+  /* ── TOOLBAR ── */
+  #toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px;
+    background: var(--toolbar-bg);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  #toolbar .logo { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: .5px; margin-right: 8px; white-space: nowrap; }
+  .tb-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: #162334; color: var(--text); font-size: 12px; font-weight: 500;
+    cursor: pointer; transition: background .15s, border-color .15s;
+    white-space: nowrap;
+  }
+  .tb-btn:hover { background: #1e344f; border-color: var(--accent); }
+  .tb-btn.danger:hover { border-color: var(--deny); color: var(--deny); }
+  .tb-btn svg { width:14px; height:14px; flex-shrink:0; }
+
+  #any-toggle { color: var(--any); border-color: #4a1d7a; }
+  #any-toggle.active { background: #2d1252; border-color: var(--any); }
+
+  .tb-sep { width: 1px; height: 28px; background: var(--border); margin: 0 4px; }
+
+  #search {
+    padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
+    background: #162334; color: var(--text); font-size: 12px; width: 180px;
+    outline: none; transition: border-color .15s;
+  }
+  #search:focus { border-color: var(--accent); }
+  #search::placeholder { color: var(--text-dim); }
+
+  #stats { font-size: 11px; color: var(--text-dim); margin-left: 4px; white-space: nowrap; }
+
+  /* ── LEGEND ── */
+  #legend {
+    display: flex; align-items: center; gap: 14px;
+    padding: 6px 16px;
+    background: var(--toolbar-bg);
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; color: var(--text-dim);
+    flex-shrink: 0; flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .legend-line { width: 20px; height: 3px; border-radius: 2px; }
+
+  /* ── MAIN LAYOUT ── */
+  #main { display: flex; flex-direction: column; height: calc(100vh - 92px); }
+  #graph-area { flex: 1; position: relative; overflow: hidden; }
+  #cy { width: 100%; height: 100%; }
+
+  /* ── DETAIL PANEL (bottom slide-up) ── */
+  #detail-panel {
+    background: var(--panel-bg);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height .3s ease;
+  }
+  #detail-panel.open { max-height: 320px; }
+
+  #detail-inner { padding: 14px 20px 16px; overflow-y: auto; height: 100%; }
+
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .panel-title { font-size: 14px; font-weight: 600; color: #fff; }
+  .panel-cidr { font-size: 12px; color: var(--text-dim); font-family: 'Consolas', monospace; }
+  #panel-close {
+    background: none; border: none; color: var(--text-dim); cursor: pointer;
+    font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px;
+    transition: color .15s;
+  }
+  #panel-close:hover { color: #fff; }
+
+  /* ── TWO COLUMN INSIDE PANEL ── */
+  .panel-cols { display: flex; gap: 24px; flex-wrap: wrap; }
+  .panel-col { flex: 1; min-width: 220px; }
+  .col-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text-dim); margin-bottom: 8px; }
+
+  /* ── TABLES ── */
+  .data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .data-table th {
+    text-align: left; padding: 4px 8px; font-weight: 600;
+    color: var(--text-dim); border-bottom: 1px solid var(--border);
+    font-size: 10px; text-transform: uppercase; letter-spacing: .4px;
+  }
+  .data-table td { padding: 5px 8px; border-bottom: 1px solid #1a2d42; color: var(--text); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: #162334; }
+
+  .badge-accept  { color: var(--accept); font-weight: 600; }
+  .badge-deny    { color: var(--deny);   font-weight: 600; }
+  .badge-mixed   { color: var(--mixed);  font-weight: 600; }
+  .badge-disabled{ color: var(--disabled); }
+
+  .tag {
+    display: inline-block; padding: 1px 7px; border-radius: 10px;
+    font-size: 10px; font-weight: 600;
+  }
+  .tag-accept   { background: #0c2e1c; color: var(--accept); border: 1px solid #1a5c37; }
+  .tag-deny     { background: #2e0c18; color: var(--deny);   border: 1px solid #5c1a27; }
+  .tag-mixed    { background: #2e1e06; color: var(--mixed);  border: 1px solid #7a4d0f; }
+  .tag-disabled { background: #1a2530; color: var(--disabled); border: 1px solid #2e3f50; }
+  .tag-on  { background: #0c2e1c; color: var(--accept); border: 1px solid #1a5c37; }
+  .tag-off { background: #1a2530; color: var(--disabled); border: 1px solid #2e3f50; }
+
+  /* ── EMPTY / WELCOME ── */
+  #welcome {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    pointer-events: none; user-select: none;
+  }
+  #welcome .w-icon { font-size: 48px; opacity: .15; margin-bottom: 16px; }
+  #welcome .w-text { font-size: 14px; color: var(--text-dim); text-align: center; line-height: 1.8; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1e344f; border: 1px solid var(--border);
+    color: var(--text); font-size: 12px;
+    padding: 8px 20px; border-radius: 8px;
+    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 999;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a3f55; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <span class="logo">⬡ FW Watcher</span>
+
+  <button class="tb-btn" id="btn-addr" title="Load addresses CSV">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L7.5 13.293V1.5A.5.5 0 0 1 8 1z"/></svg>
+    Load Addresses
+  </button>
+
+  <button class="tb-btn" id="btn-pol" title="Load policies CSV">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L7.5 13.293V1.5A.5.5 0 0 1 8 1z"/></svg>
+    Load Policies
+  </button>
+
+  <button class="tb-btn" id="btn-fit" title="Fit to view">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1h4a.5.5 0 0 1 0 1H2v3.5a.5.5 0 0 1-1 0V1.5A.5.5 0 0 1 1.5 1zm13 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V2h-3.5a.5.5 0 0 1 0-1h4zM1 10.5a.5.5 0 0 1 .5-.5h.5v3.5h3.5a.5.5 0 0 1 0 1h-4A.5.5 0 0 1 1 14.5v-4zm13.5-.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-4a.5.5 0 0 1 0-1H14v-3.5a.5.5 0 0 1 .5-.5z"/></svg>
+    Fit
+  </button>
+
+  <button class="tb-btn danger" id="btn-clear" title="Clear all">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>
+    Clear
+  </button>
+
+  <button class="tb-btn" id="any-toggle" title="Toggle ANY node">⬡ ANY Node</button>
+
+  <div class="tb-sep"></div>
+  <input id="search" type="text" placeholder="🔍  Search node…" autocomplete="off" />
+  <div class="tb-sep"></div>
+  <span id="stats">No data loaded</span>
+
+  <input type="file" id="file-addr" accept=".csv" style="display:none" />
+  <input type="file" id="file-pol"  accept=".csv" style="display:none" />
+</div>
+
+<!-- LEGEND -->
+<div id="legend">
+  <span style="font-weight:600;color:var(--text)">Legend:</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--accept)"></span> Accept</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--deny)"></span> Deny</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--mixed)"></span> Mixed</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--disabled)"></span> Disabled</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--any)"></span> ANY catch-all</span>
+  <span class="legend-item"><span class="legend-line" style="background:var(--accent)"></span> Subnet node</span>
+  <span class="legend-item"><span class="legend-line" style="background:var(--text-dim);opacity:.6"></span> Host/Range</span>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="graph-area">
+    <div id="welcome">
+      <div class="w-icon">🛡️</div>
+      <div class="w-text">Load an Addresses CSV and a Policies CSV<br>to visualise your FortiGate network topology.</div>
+    </div>
+    <div id="cy"></div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <div id="detail-panel">
+    <div id="detail-inner">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title" id="panel-title">—</div>
+          <div class="panel-cidr" id="panel-cidr"></div>
+        </div>
+        <button id="panel-close" title="Close">✕</button>
+      </div>
+      <div id="panel-body"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── state ─────────────────────────────────────────────────────────────────────
+let cy = null;
+let showAny = true;
+let topologyData = { nodes: [], edges: [] };
+let focusedId = null;
+
+// ── colour map ────────────────────────────────────────────────────────────────
+const EDGE_COLOR = {
+  accept:   '#17c97e',
+  deny:     '#f04060',
+  mixed:    '#f59e0b',
+  disabled: '#607d8b',
+};
+const NODE_ACCEPT_RING = '#17c97e';
+
+// ── Cytoscape stylesheet ──────────────────────────────────────────────────────
+function buildStyle() {
+  return [
+    {
+      selector: 'node',
+      style: {
+        'width': 28,
+        'height': 28,
+        'shape': 'ellipse',
+        'background-color': '#162334',
+        'border-width': 2.5,
+        'border-color': '#0078d4',
+        'label': 'data(label)',
+        'text-valign': 'top',
+        'text-halign': 'center',
+        'color': '#c9d8e8',
+        'font-size': 11,
+        'font-family': 'Segoe UI, system-ui, sans-serif',
+        'font-weight': '600',
+        'text-margin-y': -6,
+        'text-max-width': 140,
+        'text-wrap': 'ellipsis',
+        'transition-property': 'opacity, border-color, border-width, background-color',
+        'transition-duration': '180ms',
+        'overlay-padding': 6,
+      }
+    },
+    {
+      selector: 'node[?virtual]',
+      style: {
+        'border-color': '#a855f7',
+        'background-color': '#1d0d33',
+        'width': 22,
+        'height': 22,
+        'font-size': 10,
+        'color': '#c4a0f0',
+        'border-style': 'dashed',
+      }
+    },
+    {
+      selector: 'node[?isSubnet]:not([?virtual])',
+      style: {
+        'width': 34,
+        'height': 34,
+        'border-width': 3,
+      }
+    },
+    {
+      selector: 'node.dimmed',
+      style: { 'opacity': 0.12 }
+    },
+    {
+      selector: 'node.highlighted',
+      style: {
+        'border-color': '#00d4ff',
+        'border-width': 3.5,
+        'background-color': '#0d2035',
+        'opacity': 1,
+      }
+    },
+    {
+      selector: 'node.focused',
+      style: {
+        'border-color': '#00d4ff',
+        'border-width': 4,
+        'background-color': '#0a2540',
+        'width': 40,
+        'height': 40,
+        'opacity': 1,
+      }
+    },
+    {
+      selector: 'edge',
+      style: {
+        'width': 1.8,
+        'line-color': 'data(color)',
+        'target-arrow-color': 'data(color)',
+        'target-arrow-shape': 'triangle',
+        'arrow-scale': 0.9,
+        'curve-style': 'bezier',
+        'control-point-step-size': 30,
+        'opacity': 0.75,
+        'transition-property': 'opacity, width, line-color',
+        'transition-duration': '180ms',
+        'overlay-padding': 8,
+      }
+    },
+    {
+      selector: 'edge[action="disabled"]',
+      style: { 'line-style': 'dashed', 'line-dash-pattern': [6, 4] }
+    },
+    {
+      selector: 'edge.dimmed',
+      style: { 'opacity': 0.05 }
+    },
+    {
+      selector: 'edge.highlighted',
+      style: { 'opacity': 1, 'width': 3 }
+    },
+    {
+      selector: 'edge:selected',
+      style: { 'width': 3.5, 'opacity': 1 }
+    },
+  ];
+}
+
+// ── build graph ───────────────────────────────────────────────────────────────
+function buildGraph(data) {
+  if (cy) cy.destroy();
+
+  const elements = [];
+
+  for (const n of data.nodes) {
+    if (!showAny && (n.id === '__ANY__' || n.id.startsWith('[') && n.id.endsWith(']'))) continue;
+    elements.push({
+      data: {
+        id: n.id,
+        label: n.label,
+        cidr: n.cidr,
+        virtual: n.virtual || false,
+        isSubnet: n.isSubnet || false,
+        memberCount: n.memberCount || 0,
+        comment: n.comment || '',
+        members: n.members || [],
+      }
+    });
+  }
+
+  const nodeIds = new Set(elements.map(e => e.data.id));
+
+  for (const e of data.edges) {
+    if (!nodeIds.has(e.source) || !nodeIds.has(e.target)) continue;
+    elements.push({
+      data: {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        color: EDGE_COLOR[e.action] || '#607d8b',
+        action: e.action,
+        count: e.count,
+        policies: e.policies,
+      }
+    });
+  }
+
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    elements,
+    style: buildStyle(),
+    layout: { name: 'cose', animate: true, animationDuration: 600, padding: 80, nodeRepulsion: 8000, idealEdgeLength: 160, gravity: 1.2 },
+    wheelSensitivity: 0.3,
+  });
+
+  cy.on('tap', 'node', onNodeTap);
+  cy.on('tap', 'edge', onEdgeTap);
+  cy.on('tap', function(e) { if (e.target === cy) clearFocus(); });
+
+  document.getElementById('welcome').style.display =
+    elements.length > 0 ? 'none' : 'flex';
+
+  updateStats();
+}
+
+// ── focus logic ───────────────────────────────────────────────────────────────
+function clearFocus() {
+  if (!cy) return;
+  focusedId = null;
+  cy.elements().removeClass('dimmed highlighted focused');
+  cy.elements().style('opacity', '');
+  closePanel();
+}
+
+function focusNode(node) {
+  if (!cy) return;
+  focusedId = node.id();
+
+  const neighborhood = node.neighborhood();
+  const relevant = neighborhood.union(node);
+
+  cy.elements().addClass('dimmed').removeClass('highlighted focused');
+  relevant.removeClass('dimmed').addClass('highlighted');
+  node.removeClass('highlighted').addClass('focused');
+
+  // brighten connected edges
+  node.connectedEdges().removeClass('dimmed').addClass('highlighted');
+}
+
+function focusEdge(edge) {
+  if (!cy) return;
+  focusedId = edge.id();
+
+  cy.elements().addClass('dimmed').removeClass('highlighted focused');
+  edge.removeClass('dimmed').addClass('highlighted');
+  edge.source().removeClass('dimmed').addClass('highlighted');
+  edge.target().removeClass('dimmed').addClass('highlighted');
+}
+
+// ── tap handlers ──────────────────────────────────────────────────────────────
+function onNodeTap(e) {
+  const node = e.target;
+  focusNode(node);
+  showNodePanel(node.data());
+}
+
+function onEdgeTap(e) {
+  const edge = e.target;
+  focusEdge(edge);
+  showEdgePanel(edge.data());
+}
+
+// ── detail panel ──────────────────────────────────────────────────────────────
+function openPanel() {
+  document.getElementById('detail-panel').classList.add('open');
+}
+function closePanel() {
+  document.getElementById('detail-panel').classList.remove('open');
+}
+
+document.getElementById('panel-close').addEventListener('click', () => {
+  clearFocus();
+});
+
+function showNodePanel(data) {
+  document.getElementById('panel-title').textContent = data.id === '__ANY__'
+    ? '⬡ ANY — catch-all node'
+    : data.label;
+  document.getElementById('panel-cidr').textContent = data.cidr || (data.virtual ? 'Virtual / catch-all' : '');
+
+  let html = '<div class="panel-cols">';
+
+  // left: members
+  html += '<div class="panel-col"><div class="col-title">Members (' + (data.members ? data.members.length : 0) + ')</div>';
+  if (data.members && data.members.length > 0) {
+    html += '<table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Address</th></tr></thead><tbody>';
+    for (const m of data.members) {
+      html += `<tr><td>${esc(m.name)}</td><td>${esc(m.type)}</td><td style="font-family:monospace">${esc(m.address)}</td></tr>`;
+    }
+    html += '</tbody></table>';
+  } else if (data.virtual) {
+    html += '<p style="font-size:11px;color:var(--text-dim);padding:4px 0">Represents any address not belonging to a specific subnet.</p>';
+  } else {
+    html += '<p style="font-size:11px;color:var(--text-dim);padding:4px 0">No member objects.</p>';
+  }
+  html += '</div>';
+
+  // right: related policies
+  const relPolicies = getRelatedPolicies(data.id);
+  html += '<div class="panel-col"><div class="col-title">Related Policies (' + relPolicies.length + ')</div>';
+  if (relPolicies.length > 0) {
+    html += '<table class="data-table"><thead><tr><th>#</th><th>Name</th><th>Action</th><th>Status</th></tr></thead><tbody>';
+    for (const p of relPolicies) {
+      const ac = p.action.toLowerCase();
+      html += `<tr>
+        <td>${esc(p.id)}</td>
+        <td>${esc(p.name)}</td>
+        <td><span class="tag tag-${ac}">${esc(p.action)}</span></td>
+        <td><span class="tag ${p.enabled ? 'tag-on' : 'tag-off'}">${p.enabled ? 'ON' : 'OFF'}</span></td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+  } else {
+    html += '<p style="font-size:11px;color:var(--text-dim);padding:4px 0">No policies found.</p>';
+  }
+  html += '</div></div>';
+
+  if (data.comment) {
+    html += `<div style="margin-top:10px;font-size:11px;color:var(--text-dim)">💬 ${esc(data.comment)}</div>`;
+  }
+
+  document.getElementById('panel-body').innerHTML = html;
+  openPanel();
+}
+
+function showEdgePanel(data) {
+  document.getElementById('panel-title').textContent =
+    `${data.source}  →  ${data.target}`;
+  document.getElementById('panel-cidr').textContent =
+    `${data.count} polic${data.count === 1 ? 'y' : 'ies'}  ·  ${data.action.toUpperCase()}`;
+
+  let html = '<table class="data-table"><thead><tr><th>#</th><th>Name</th><th>Source</th><th>Destination</th><th>Service</th><th>Action</th><th>Status</th></tr></thead><tbody>';
+  for (const p of data.policies) {
+    const ac = p.action.toLowerCase();
+    html += `<tr>
+      <td>${esc(p.id)}</td>
+      <td>${esc(p.name)}</td>
+      <td style="font-size:10px">${esc((p.sources || []).join(', '))}</td>
+      <td style="font-size:10px">${esc((p.destinations || []).join(', '))}</td>
+      <td style="font-size:10px">${esc((p.services || []).join(', ') || 'any')}</td>
+      <td><span class="tag tag-${ac}">${esc(p.action)}</span></td>
+      <td><span class="tag ${p.enabled ? 'tag-on' : 'tag-off'}">${p.enabled ? 'ON' : 'OFF'}</span></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('panel-body').innerHTML = html;
+  openPanel();
+}
+
+function getRelatedPolicies(nodeId) {
+  const policies = [];
+  const seen = new Set();
+  for (const e of topologyData.edges) {
+    if (e.source === nodeId || e.target === nodeId) {
+      for (const p of e.policies) {
+        if (!seen.has(p.id)) { seen.add(p.id); policies.push(p); }
+      }
+    }
+  }
+  return policies;
+}
+
+// ── toolbar handlers ──────────────────────────────────────────────────────────
+document.getElementById('btn-addr').addEventListener('click', () =>
+  document.getElementById('file-addr').click());
+document.getElementById('btn-pol').addEventListener('click', () =>
+  document.getElementById('file-pol').click());
+
+document.getElementById('file-addr').addEventListener('change', async function() {
+  if (!this.files[0]) return;
+  const text = await this.files[0].text();
+  this.value = '';
+  const res = await fetch('/api/upload/addresses', { method: 'POST', body: text });
+  const data = await res.json();
+  applyTopology(data);
+  toast('Addresses loaded');
+});
+
+document.getElementById('file-pol').addEventListener('change', async function() {
+  if (!this.files[0]) return;
+  const text = await this.files[0].text();
+  this.value = '';
+  const res = await fetch('/api/upload/policies', { method: 'POST', body: text });
+  const data = await res.json();
+  applyTopology(data);
+  toast('Policies loaded');
+});
+
+document.getElementById('btn-fit').addEventListener('click', () => {
+  if (cy) cy.fit(undefined, 60);
+});
+
+document.getElementById('btn-clear').addEventListener('click', async () => {
+  await fetch('/api/clear', { method: 'POST' });
+  topologyData = { nodes: [], edges: [] };
+  buildGraph(topologyData);
+  clearFocus();
+  updateStats();
+  toast('Cleared');
+});
+
+document.getElementById('any-toggle').addEventListener('click', function() {
+  showAny = !showAny;
+  this.classList.toggle('active', showAny);
+  buildGraph(topologyData);
+});
+
+document.getElementById('search').addEventListener('input', function() {
+  if (!cy) return;
+  const q = this.value.trim().toLowerCase();
+  if (!q) { cy.elements().removeClass('dimmed highlighted focused'); return; }
+  cy.nodes().forEach(n => {
+    const match = n.id().toLowerCase().includes(q);
+    n.removeClass('dimmed highlighted focused');
+    if (match) n.addClass('highlighted');
+    else n.addClass('dimmed');
+  });
+});
+
+// ── helpers ───────────────────────────────────────────────────────────────────
+function applyTopology(data) {
+  topologyData = data;
+  buildGraph(data);
+}
+
+function updateStats() {
+  const n = topologyData.nodes ? topologyData.nodes.length : 0;
+  const e = topologyData.edges ? topologyData.edges.length : 0;
+  document.getElementById('stats').textContent =
+    n > 0 ? `${n} nodes · ${e} connections` : 'No data loaded';
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+document.getElementById('any-toggle').classList.add('active');
+
+// Load existing topology if server already has data
+fetch('/api/topology')
+  .then(r => r.json())
+  .then(data => {
+    if (data.nodes && data.nodes.length > 0) applyTopology(data);
+  })
+  .catch(() => {});
+</script>
+</body>
+</html>
