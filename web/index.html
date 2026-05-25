@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>FW Watcher</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
+<script src="https://unpkg.com/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
   :root {
     --bg:        #0f1923;
     --panel-bg:  #131f2e;
@@ -21,135 +21,86 @@
     --mixed:     #f59e0b;
     --disabled:  #607d8b;
     --any:       #a855f7;
-    --highlight: #00d4ff;
   }
-
   html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
 
-  /* ── TOOLBAR ── */
   #toolbar {
     display: flex; align-items: center; gap: 8px;
-    padding: 10px 16px;
-    background: var(--toolbar-bg);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-    flex-wrap: wrap;
+    padding: 10px 16px; background: var(--toolbar-bg);
+    border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap;
   }
-  #toolbar .logo { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: .5px; margin-right: 8px; white-space: nowrap; }
+  #toolbar .logo { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: .5px; margin-right: 6px; white-space: nowrap; }
   .tb-btn {
     display: flex; align-items: center; gap: 6px;
     padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
     background: #162334; color: var(--text); font-size: 12px; font-weight: 500;
-    cursor: pointer; transition: background .15s, border-color .15s;
-    white-space: nowrap;
+    cursor: pointer; transition: background .15s, border-color .15s; white-space: nowrap;
   }
-  .tb-btn:hover { background: #1e344f; border-color: var(--accent); }
-  .tb-btn.danger:hover { border-color: var(--deny); color: var(--deny); }
-  .tb-btn svg { width:14px; height:14px; flex-shrink:0; }
-
-  #any-toggle { color: var(--any); border-color: #4a1d7a; }
-  #any-toggle.active { background: #2d1252; border-color: var(--any); }
-
-  .tb-sep { width: 1px; height: 28px; background: var(--border); margin: 0 4px; }
-
+  .tb-btn:hover               { background: #1e344f; border-color: var(--accent); }
+  .tb-btn.danger:hover        { border-color: var(--deny); color: var(--deny); }
+  .tb-btn svg                 { width:14px; height:14px; flex-shrink:0; }
+  #any-toggle                 { color: var(--any); border-color: #4a1d7a; }
+  #any-toggle.active          { background: #2d1252; border-color: var(--any); }
+  .tb-sep  { width: 1px; height: 28px; background: var(--border); margin: 0 2px; }
   #search {
     padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
-    background: #162334; color: var(--text); font-size: 12px; width: 180px;
+    background: #162334; color: var(--text); font-size: 12px; width: 170px;
     outline: none; transition: border-color .15s;
   }
   #search:focus { border-color: var(--accent); }
   #search::placeholder { color: var(--text-dim); }
+  #stats { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
 
-  #stats { font-size: 11px; color: var(--text-dim); margin-left: 4px; white-space: nowrap; }
-
-  /* ── LEGEND ── */
   #legend {
     display: flex; align-items: center; gap: 14px;
-    padding: 6px 16px;
-    background: var(--toolbar-bg);
+    padding: 5px 16px; background: var(--toolbar-bg);
     border-bottom: 1px solid var(--border);
-    font-size: 11px; color: var(--text-dim);
-    flex-shrink: 0; flex-wrap: wrap;
+    font-size: 11px; color: var(--text-dim); flex-shrink: 0; flex-wrap: wrap;
   }
   .legend-item { display: flex; align-items: center; gap: 5px; }
   .legend-dot  { width: 8px; height: 8px; border-radius: 50%; }
-  .legend-line { width: 20px; height: 3px; border-radius: 2px; }
 
-  /* ── MAIN LAYOUT ── */
-  #main { display: flex; flex-direction: column; height: calc(100vh - 92px); }
-  #graph-area { flex: 1; position: relative; overflow: hidden; }
-  #cy { width: 100%; height: 100%; }
+  #main        { display: flex; flex-direction: column; height: calc(100vh - 90px); }
+  #graph-area  { flex: 1; position: relative; overflow: hidden; }
+  #cy          { width: 100%; height: 100%; }
 
-  /* ── DETAIL PANEL (bottom slide-up) ── */
   #detail-panel {
-    background: var(--panel-bg);
-    border-top: 1px solid var(--border);
-    flex-shrink: 0;
-    overflow: hidden;
-    max-height: 0;
-    transition: max-height .3s ease;
+    background: var(--panel-bg); border-top: 1px solid var(--border);
+    flex-shrink: 0; overflow: hidden; max-height: 0;
+    transition: max-height .28s ease;
   }
-  #detail-panel.open { max-height: 320px; }
-  #detail-inner { padding: 14px 20px 16px; overflow-y: auto; height: 100%; }
+  #detail-panel.open { max-height: 310px; }
+  #detail-inner { padding: 12px 20px 14px; overflow-y: auto; height: 100%; }
 
-  .panel-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px;
-  }
-  .panel-title { font-size: 14px; font-weight: 600; color: #fff; }
-  .panel-sub   { font-size: 12px; color: var(--text-dim); font-family: 'Consolas', monospace; margin-top: 2px; }
-  #panel-close {
-    background: none; border: none; color: var(--text-dim); cursor: pointer;
-    font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px;
-    transition: color .15s;
-  }
+  .panel-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+  .panel-title  { font-size: 14px; font-weight: 600; color: #fff; }
+  .panel-sub    { font-size: 11px; color: var(--text-dim); font-family: 'Consolas', monospace; margin-top: 2px; }
+  #panel-close  { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px; }
   #panel-close:hover { color: #fff; }
 
-  .panel-cols  { display: flex; gap: 24px; flex-wrap: wrap; }
-  .panel-col   { flex: 1; min-width: 220px; }
-  .col-title   { font-size: 11px; font-weight: 600; text-transform: uppercase;
-                 letter-spacing: .6px; color: var(--text-dim); margin-bottom: 8px; }
+  .panel-cols { display: flex; gap: 20px; flex-wrap: wrap; }
+  .panel-col  { flex: 1; min-width: 200px; }
+  .col-title  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .7px; color: var(--text-dim); margin-bottom: 7px; }
 
-  /* ── TABLES ── */
   .data-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  .data-table th {
-    text-align: left; padding: 4px 8px; font-weight: 600;
-    color: var(--text-dim); border-bottom: 1px solid var(--border);
-    font-size: 10px; text-transform: uppercase; letter-spacing: .4px;
-  }
-  .data-table td { padding: 5px 8px; border-bottom: 1px solid #1a2d42; color: var(--text); }
+  .data-table th { text-align: left; padding: 3px 8px; color: var(--text-dim); border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: .4px; }
+  .data-table td { padding: 4px 8px; border-bottom: 1px solid #1a2d42; color: var(--text); }
   .data-table tr:last-child td { border-bottom: none; }
   .data-table tr:hover td { background: #162334; }
 
-  .tag {
-    display: inline-block; padding: 1px 7px; border-radius: 10px;
-    font-size: 10px; font-weight: 600;
-  }
-  .tag-accept   { background: #0c2e1c; color: var(--accept); border: 1px solid #1a5c37; }
-  .tag-deny     { background: #2e0c18; color: var(--deny);   border: 1px solid #5c1a27; }
-  .tag-mixed    { background: #2e1e06; color: var(--mixed);  border: 1px solid #7a4d0f; }
-  .tag-disabled { background: #1a2530; color: var(--disabled); border: 1px solid #2e3f50; }
-  .tag-on  { background: #0c2e1c; color: var(--accept); border: 1px solid #1a5c37; }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+  .tag-accept   { background: #0c2e1c; color: var(--accept);  border: 1px solid #1a5c37; }
+  .tag-deny     { background: #2e0c18; color: var(--deny);    border: 1px solid #5c1a27; }
+  .tag-mixed    { background: #2e1e06; color: var(--mixed);   border: 1px solid #7a4d0f; }
+  .tag-disabled { background: #1a2530; color: var(--disabled);border: 1px solid #2e3f50; }
+  .tag-on  { background: #0c2e1c; color: var(--accept);  border: 1px solid #1a5c37; }
   .tag-off { background: #1a2530; color: var(--disabled); border: 1px solid #2e3f50; }
 
-  /* ── WELCOME ── */
-  #welcome {
-    position: absolute; inset: 0;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    pointer-events: none; user-select: none;
-  }
+  #welcome { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; user-select: none; }
   #welcome .w-icon { font-size: 48px; opacity: .15; margin-bottom: 16px; }
-  #welcome .w-text { font-size: 14px; color: var(--text-dim); text-align: center; line-height: 1.8; }
+  #welcome .w-text { font-size: 14px; color: var(--text-dim); text-align: center; line-height: 1.9; }
 
-  /* ── TOAST ── */
-  #toast {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    background: #1e344f; border: 1px solid var(--border);
-    color: var(--text); font-size: 12px;
-    padding: 8px 20px; border-radius: 8px;
-    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 999;
-    white-space: nowrap;
-  }
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1e344f; border: 1px solid var(--border); color: var(--text); font-size: 12px; padding: 8px 20px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 999; white-space: nowrap; }
   #toast.show { opacity: 1; }
 
   ::-webkit-scrollbar { width: 6px; }
@@ -159,31 +110,42 @@
 </head>
 <body>
 
-<!-- TOOLBAR -->
 <div id="toolbar">
   <span class="logo">⬡ FW Watcher</span>
 
   <button class="tb-btn" id="btn-addr">
-    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L7.5 13.293V1.5A.5.5 0 0 1 8 1z"/></svg>
-    Load Addresses
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg>
+    Addresses
   </button>
   <button class="tb-btn" id="btn-pol">
-    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L7.5 13.293V1.5A.5.5 0 0 1 8 1z"/></svg>
-    Load Policies
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg>
+    Policies
   </button>
-  <button class="tb-btn" id="btn-fit">
+
+  <div class="tb-sep"></div>
+
+  <button class="tb-btn" id="btn-fit" title="Fit all nodes">
     <svg viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 1h4a.5.5 0 0 1 0 1H2v3.5a.5.5 0 0 1-1 0V1.5A.5.5 0 0 1 1.5 1zm13 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V2h-3.5a.5.5 0 0 1 0-1h4zM1 10.5a.5.5 0 0 1 .5-.5h.5v3.5h3.5a.5.5 0 0 1 0 1h-4A.5.5 0 0 1 1 14.5v-4zm13.5-.5a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5h-4a.5.5 0 0 1 0-1H14v-3.5a.5.5 0 0 1 .5-.5z"/></svg>
     Fit
+  </button>
+  <button class="tb-btn" id="btn-relayout" title="Re-run layout to fix overlaps">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/><path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/></svg>
+    Re-layout
+  </button>
+  <button class="tb-btn" id="btn-export" title="Export as PNG">
+    <svg viewBox="0 0 16 16" fill="currentColor"><path d="M.002 3a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-12a2 2 0 0 1-2-2V3zm1 9v1a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12zm5-6.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0z"/></svg>
+    Export
   </button>
   <button class="tb-btn danger" id="btn-clear">
     <svg viewBox="0 0 16 16" fill="currentColor"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/><path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>
     Clear
   </button>
 
-  <button class="tb-btn" id="any-toggle">⬡ ANY Node</button>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="any-toggle">⬡ ANY</button>
 
   <div class="tb-sep"></div>
-  <input id="search" type="text" placeholder="🔍  Search node…" autocomplete="off" />
+  <input id="search" type="text" placeholder="🔍  Search…" autocomplete="off" />
   <div class="tb-sep"></div>
   <span id="stats">No data loaded</span>
 
@@ -191,28 +153,25 @@
   <input type="file" id="file-pol"  accept=".csv" style="display:none" />
 </div>
 
-<!-- LEGEND -->
 <div id="legend">
   <span style="font-weight:600;color:var(--text)">Legend:</span>
-  <span class="legend-item"><span class="legend-dot" style="background:var(--accept)"></span> Accept</span>
-  <span class="legend-item"><span class="legend-dot" style="background:var(--deny)"></span> Deny</span>
-  <span class="legend-item"><span class="legend-dot" style="background:var(--mixed)"></span> Mixed</span>
-  <span class="legend-item"><span class="legend-dot" style="background:var(--disabled)"></span> Disabled</span>
-  <span class="legend-item"><span class="legend-dot" style="background:var(--any)"></span> ANY catch-all</span>
-  <span class="legend-item" style="margin-left:8px;font-style:italic;color:var(--text-dim)">Click a subnet to expand its members</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--accept)"></span>Accept</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--deny)"></span>Deny</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--mixed)"></span>Mixed</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--disabled)"></span>Disabled</span>
+  <span class="legend-item"><span class="legend-dot" style="background:var(--any)"></span>ANY</span>
+  <span class="legend-item" style="margin-left:6px;font-style:italic">Click subnet to expand · Click again to collapse · Drag to reposition</span>
 </div>
 
-<!-- MAIN -->
 <div id="main">
   <div id="graph-area">
     <div id="welcome">
       <div class="w-icon">🛡️</div>
-      <div class="w-text">Load an Addresses CSV and a Policies CSV<br>to visualise your FortiGate network topology.</div>
+      <div class="w-text">Load Addresses CSV then Policies CSV<br>to render the FortiGate network topology.</div>
     </div>
     <div id="cy"></div>
   </div>
 
-  <!-- DETAIL PANEL -->
   <div id="detail-panel">
     <div id="detail-inner">
       <div class="panel-header">
@@ -220,7 +179,7 @@
           <div class="panel-title" id="panel-title">—</div>
           <div class="panel-sub"   id="panel-sub"></div>
         </div>
-        <button id="panel-close" title="Close">✕</button>
+        <button id="panel-close">✕</button>
       </div>
       <div id="panel-body"></div>
     </div>
@@ -230,307 +189,253 @@
 <div id="toast"></div>
 
 <script>
+// register fcose if loaded
+try { cytoscape.use(cytoscapeFcose); } catch(e) {}
+const HAS_FCOSE = !!cytoscape.prototype.fcose || (function(){
+  try { return new cytoscape({headless:true}).layout({name:'fcose', stop:()=>{}}).options.name === 'fcose'; } catch(e){ return false; }
+})();
+
 // ── state ─────────────────────────────────────────────────────────────────────
 let cy = null;
 let showAny = true;
 let topologyData = { nodes: [], edges: [] };
-let expandedNodes = new Map(); // nodeId → [childId, …]
+let expandedNodes  = new Map(); // nodeId → [childId, …]
+let savedPositions = new Map(); // nodeId → {x, y} — original position before expand
 
-// ── colour map ────────────────────────────────────────────────────────────────
-const EDGE_COLOR = {
-  accept:   '#17c97e',
-  deny:     '#f04060',
-  mixed:    '#f59e0b',
-  disabled: '#607d8b',
-};
+const EDGE_COLOR = { accept:'#17c97e', deny:'#f04060', mixed:'#f59e0b', disabled:'#607d8b' };
 
-// ── Cytoscape stylesheet ──────────────────────────────────────────────────────
+// ── stylesheet ────────────────────────────────────────────────────────────────
 function buildStyle() {
   return [
-    // base node
     {
       selector: 'node',
       style: {
-        'width': 28, 'height': 28,
-        'shape': 'ellipse',
+        'width': 28, 'height': 28, 'shape': 'ellipse',
         'background-color': '#162334',
-        'border-width': 2.5,
-        'border-color': '#0078d4',
+        'border-width': 2.5, 'border-color': '#0078d4',
         'label': 'data(label)',
-        'text-valign': 'top',
-        'text-halign': 'center',
-        'color': '#c9d8e8',
-        'font-size': 11,
-        'font-family': 'Segoe UI, system-ui, sans-serif',
-        'font-weight': '600',
-        'text-margin-y': -6,
-        'text-max-width': 150,
-        'text-wrap': 'ellipsis',
+        'text-valign': 'top', 'text-halign': 'center',
+        'color': '#c9d8e8', 'font-size': 11,
+        'font-family': 'Segoe UI, system-ui, sans-serif', 'font-weight': '600',
+        'text-margin-y': -6, 'text-max-width': 150, 'text-wrap': 'ellipsis',
         'transition-property': 'opacity, border-color, border-width, background-color, width, height',
         'transition-duration': '200ms',
-        'overlay-padding': 6,
-        'z-index': 2,
+        'overlay-padding': 6, 'z-index': 2,
       }
     },
-    // virtual (ANY) node
     {
       selector: 'node[?virtual]',
       style: {
-        'border-color': '#a855f7',
-        'background-color': '#1d0d33',
-        'width': 22, 'height': 22,
-        'font-size': 10,
-        'color': '#c4a0f0',
-        'border-style': 'dashed',
+        'border-color': '#a855f7', 'background-color': '#1d0d33',
+        'width': 22, 'height': 22, 'font-size': 10, 'color': '#c4a0f0', 'border-style': 'dashed',
       }
     },
-    // subnet node (slightly bigger)
     {
       selector: 'node[?isSubnet]:not([?virtual])',
-      style: {
-        'width': 36, 'height': 36,
-        'border-width': 3,
-      }
+      style: { 'width': 36, 'height': 36, 'border-width': 3 }
     },
-    // ── expanded compound container ──
+    // ── expanded compound ──
     {
       selector: 'node.expanded',
       style: {
         'shape': 'roundrectangle',
-        'background-color': '#060f1a',
-        'background-opacity': 0.85,
-        'border-width': 1.5,
-        'border-color': '#1e5fa0',
-        'border-style': 'dashed',
+        'background-color': '#07111c', 'background-opacity': 0.92,
+        'border-width': 1.5, 'border-color': '#1a5490', 'border-style': 'dashed',
         'label': 'data(label)',
-        'text-valign': 'top',
-        'text-halign': 'center',
-        'text-margin-y': 10,
-        'color': '#5ba3d9',
-        'font-size': 11,
-        'font-weight': '700',
-        'padding': '30px',
-        'min-width': 80,
-        'min-height': 60,
-        'width': 'label',
-        'height': 'label',
+        'text-valign': 'top', 'text-halign': 'center', 'text-margin-y': 10,
+        'color': '#5498d0', 'font-size': 11, 'font-weight': '700',
+        'padding': '32px',
         'z-index': 1,
       }
     },
-    // ── child (member) nodes inside expanded subnet ──
+    // ── member child nodes ──
     {
       selector: 'node[?isChild]',
       style: {
-        'width': 16, 'height': 16,
-        'shape': 'ellipse',
-        'background-color': '#0b1e30',
-        'border-width': 1.5,
-        'border-color': '#2a6496',
+        'width': 16, 'height': 16, 'shape': 'ellipse',
+        'background-color': '#0a1c2e',
+        'border-width': 1.5, 'border-color': '#2a6496',
         'label': 'data(label)',
-        'text-valign': 'bottom',
-        'text-halign': 'center',
-        'text-margin-y': 4,
-        'color': '#7aa8cc',
-        'font-size': 9,
-        'font-weight': '500',
-        'text-max-width': 90,
-        'text-wrap': 'ellipsis',
-        'cursor': 'pointer',
+        'text-valign': 'bottom', 'text-halign': 'center', 'text-margin-y': 4,
+        'color': '#6da0c8', 'font-size': 9, 'font-weight': '500',
+        'text-max-width': 90, 'text-wrap': 'ellipsis',
         'z-index': 3,
         'transition-property': 'border-color, background-color, opacity',
         'transition-duration': '150ms',
       }
     },
-    {
-      selector: 'node[?isChild]:active, node[?isChild].child-hover',
-      style: {
-        'border-color': '#00d4ff',
-        'background-color': '#0d2540',
-      }
-    },
     // focus states
-    {
-      selector: 'node.dimmed',
-      style: { 'opacity': 0.1 }
-    },
+    { selector: 'node.dimmed',      style: { 'opacity': 0.1 } },
     {
       selector: 'node.highlighted',
-      style: {
-        'border-color': '#00d4ff',
-        'border-width': 3.5,
-        'background-color': '#0d2035',
-        'opacity': 1,
-      }
+      style: { 'border-color': '#00d4ff', 'border-width': 3.5, 'background-color': '#0d2035', 'opacity': 1 }
     },
     {
       selector: 'node.focused',
-      style: {
-        'border-color': '#00d4ff',
-        'border-width': 4,
-        'background-color': '#0a2540',
-        'width': 42, 'height': 42,
-        'opacity': 1,
-      }
+      style: { 'border-color': '#00d4ff', 'border-width': 4, 'background-color': '#0a2540', 'width': 42, 'height': 42, 'opacity': 1 }
     },
-    // focused expanded compound
     {
       selector: 'node.expanded.focused',
-      style: {
-        'border-color': '#00d4ff',
-        'border-width': 2,
-        'border-style': 'solid',
-        'background-color': '#091525',
-      }
+      style: { 'border-color': '#00d4ff', 'border-width': 2, 'border-style': 'solid', 'background-color': '#071525' }
+    },
+    {
+      selector: 'node[?isChild].highlighted, node[?isChild].focused',
+      style: { 'border-color': '#00d4ff', 'background-color': '#0d2540', 'width': 20, 'height': 20 }
     },
     // edges
     {
       selector: 'edge',
       style: {
-        'width': 1.8,
-        'line-color': 'data(color)',
-        'target-arrow-color': 'data(color)',
-        'target-arrow-shape': 'triangle',
-        'arrow-scale': 0.9,
-        'curve-style': 'bezier',
-        'control-point-step-size': 20,
+        'width': 1.8, 'line-color': 'data(color)',
+        'target-arrow-color': 'data(color)', 'target-arrow-shape': 'triangle', 'arrow-scale': 0.85,
+        'curve-style': 'bezier', 'control-point-step-size': 20,
         'opacity': 0.7,
-        'transition-property': 'opacity, width',
-        'transition-duration': '180ms',
+        'transition-property': 'opacity, width', 'transition-duration': '180ms',
         'overlay-padding': 8,
       }
     },
-    {
-      selector: 'edge[action="disabled"]',
-      style: { 'line-style': 'dashed', 'line-dash-pattern': [6, 4] }
-    },
-    {
-      selector: 'edge.dimmed',
-      style: { 'opacity': 0.05 }
-    },
-    {
-      selector: 'edge.highlighted',
-      style: { 'opacity': 1, 'width': 3.2 }
-    },
+    { selector: 'edge[action="disabled"]', style: { 'line-style': 'dashed', 'line-dash-pattern': [6, 4] } },
+    { selector: 'edge.dimmed',             style: { 'opacity': 0.05 } },
+    { selector: 'edge.highlighted',        style: { 'opacity': 1, 'width': 3.2 } },
   ];
+}
+
+// ── layout helpers ────────────────────────────────────────────────────────────
+function initialLayout() {
+  if (HAS_FCOSE) {
+    return {
+      name: 'fcose',
+      animate: true, animationDuration: 700, padding: 90,
+      nodeSeparation: 200,
+      nodeRepulsion: 7500,
+      idealEdgeLength: 200,
+      edgeElasticity: 0.45,
+      gravity: 0.25,
+      numIter: 2500,
+      tile: false, randomize: true,
+      quality: 'default',
+      packComponents: true,
+    };
+  }
+  return {
+    name: 'cose', animate: true, animationDuration: 700, padding: 90,
+    nodeRepulsion: 500000, idealEdgeLength: 300, gravity: 0.4,
+    nodeOverlap: 50, randomize: true,
+  };
+}
+
+function incrementalLayout() {
+  if (HAS_FCOSE) {
+    return {
+      name: 'fcose',
+      animate: true, animationDuration: 380, fit: false,
+      randomize: false, quality: 'default',
+      initialEnergyOnIncremental: 0.3,
+      nodeSeparation: 160,
+      nodeRepulsion: 6500,
+      idealEdgeLength: 180,
+      gravity: 0.2,
+    };
+  }
+  return {
+    name: 'cose', animate: true, animationDuration: 380, fit: false,
+    nodeRepulsion: 500000, idealEdgeLength: 260, gravity: 0.4,
+    randomize: false, nodeOverlap: 40,
+  };
 }
 
 // ── build graph ───────────────────────────────────────────────────────────────
 function buildGraph(data) {
   if (cy) cy.destroy();
   expandedNodes.clear();
+  savedPositions.clear();
 
   const elements = [];
-
   for (const n of data.nodes) {
     if (!showAny && isVirtual(n.id)) continue;
-    elements.push({
-      data: {
-        id: n.id,
-        label: n.label,
-        cidr: n.cidr,
-        virtual: n.virtual || false,
-        isSubnet: n.isSubnet || false,
-        memberCount: n.memberCount || 0,
-        comment: n.comment || '',
-        members: n.members || [],
-      }
-    });
+    elements.push({ data: {
+      id: n.id, label: n.label, cidr: n.cidr,
+      virtual: n.virtual || false, isSubnet: n.isSubnet || false,
+      memberCount: n.memberCount || 0, comment: n.comment || '',
+      members: n.members || [],
+    }});
   }
 
   const nodeIds = new Set(elements.map(e => e.data.id));
-
   for (const e of data.edges) {
     if (!nodeIds.has(e.source) || !nodeIds.has(e.target)) continue;
-    elements.push({
-      data: {
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        color: EDGE_COLOR[e.action] || '#607d8b',
-        action: e.action,
-        count: e.count,
-        policies: e.policies,
-      }
-    });
+    elements.push({ data: {
+      id: e.id, source: e.source, target: e.target,
+      color: EDGE_COLOR[e.action] || '#607d8b',
+      action: e.action, count: e.count, policies: e.policies,
+    }});
   }
 
   cy = cytoscape({
     container: document.getElementById('cy'),
     elements,
     style: buildStyle(),
-    layout: {
-      name: 'cose',
-      animate: true,
-      animationDuration: 700,
-      padding: 100,
-      nodeRepulsion: 500000,  // high repulsion → nodes spread far apart
-      idealEdgeLength: 300,
-      edgeElasticity: 150,
-      gravity: 0.4,
-      numIter: 1500,
-      initialTemp: 1200,
-      coolingFactor: 0.995,
-      minTemp: 1.0,
-      nodeOverlap: 50,
-      randomize: false,
-      componentSpacing: 120,
-    },
-    wheelSensitivity: 0.3,
-    minZoom: 0.1,
-    maxZoom: 4,
+    layout: initialLayout(),
+    wheelSensitivity: 0.3, minZoom: 0.05, maxZoom: 5,
   });
 
   cy.on('tap', 'node', onNodeTap);
   cy.on('tap', 'edge', onEdgeTap);
   cy.on('tap', e => { if (e.target === cy) clearFocus(); });
 
-  document.getElementById('welcome').style.display =
-    elements.length > 0 ? 'none' : 'flex';
-
+  document.getElementById('welcome').style.display = elements.length > 0 ? 'none' : 'flex';
   updateStats();
 }
 
 // ── expand / collapse ─────────────────────────────────────────────────────────
 function expandNode(nodeId) {
-  const node = cy.getElementById(nodeId);
+  const node    = cy.getElementById(nodeId);
   const members = node.data('members') || [];
   if (members.length === 0) return;
 
+  // 1. Save the current center position — we'll restore it on collapse
   const pos = node.position();
-  const cols = Math.min(members.length, 3);
-  const GAPX = 85, GAPY = 70;
+  savedPositions.set(nodeId, { x: pos.x, y: pos.y });
 
-  const toAdd = [];
+  // 2. Lay children out in a grid centered exactly on (pos.x, pos.y)
+  const cols    = Math.min(members.length, 3);
+  const rows    = Math.ceil(members.length / cols);
+  const GAPX    = 88, GAPY = 70;
+  const toAdd   = [];
   const childIds = [];
 
   members.forEach((m, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const rowCount = Math.min(members.length - row * cols, cols);
-    const cx = pos.x + (col - (rowCount - 1) / 2) * GAPX;
-    const cy_y = pos.y + 24 + row * GAPY;
-
+    const col    = i % cols;
+    const row    = Math.floor(i / cols);
+    const rowLen = Math.min(members.length - row * cols, cols);
+    // center each row independently around pos.x; center all rows around pos.y
+    const cx  = pos.x + (col - (rowLen - 1) / 2) * GAPX;
+    const cy_ = pos.y + (row - (rows - 1)   / 2) * GAPY;
     const childId = `__m__${nodeId}__${i}`;
     childIds.push(childId);
-
     toAdd.push({
       data: {
-        id: childId,
-        parent: nodeId,
-        label: m.name,
-        address: m.address,
-        type: m.type,
-        comment: m.comment || '',
-        isChild: true,
-        parentSubnet: nodeId,
+        id: childId, parent: nodeId,
+        label: m.name, address: m.address, type: m.type,
+        comment: m.comment || '', isChild: true, parentSubnet: nodeId,
       },
-      position: { x: cx, y: cy_y },
+      position: { x: cx, y: cy_ },
     });
   });
 
   cy.add(toAdd);
   node.addClass('expanded');
   expandedNodes.set(nodeId, childIds);
+
+  // 3. Gently push overlapping neighbours away — don't move expanded compound itself
+  const fixedConstraints = childIds.map(id => ({
+    nodeId: id, position: cy.getElementById(id).position(),
+  }));
+  fixedConstraints.push({ nodeId, position: { x: pos.x, y: pos.y } });
+
+  const opts = incrementalLayout();
+  if (HAS_FCOSE) opts.fixedNodeConstraint = fixedConstraints;
+  cy.layout(opts).run();
 }
 
 function collapseNode(nodeId) {
@@ -538,11 +443,21 @@ function collapseNode(nodeId) {
   if (!childIds) return;
 
   cy.remove(cy.nodes().filter(n => childIds.includes(n.id())));
-  cy.getElementById(nodeId).removeClass('expanded');
+  const node = cy.getElementById(nodeId);
+  node.removeClass('expanded');
   expandedNodes.delete(nodeId);
+
+  // Restore original center so the node snaps back to where it was
+  const saved = savedPositions.get(nodeId);
+  if (saved) { node.position(saved); savedPositions.delete(nodeId); }
+
+  // Light re-layout to close the gap left by removed children
+  const opts = incrementalLayout();
+  if (HAS_FCOSE) opts.fixedNodeConstraint = [{ nodeId, position: node.position() }];
+  cy.layout(opts).run();
 }
 
-// ── focus logic ───────────────────────────────────────────────────────────────
+// ── focus ─────────────────────────────────────────────────────────────────────
 function clearFocus() {
   if (!cy) return;
   cy.elements().removeClass('dimmed highlighted focused');
@@ -551,9 +466,8 @@ function clearFocus() {
 
 function focusNode(node) {
   const neighborhood = node.neighborhood();
-  const descendants  = node.descendants();           // children inside compound
+  const descendants  = node.descendants();
   const relevant     = neighborhood.union(node).union(descendants);
-
   cy.elements().addClass('dimmed').removeClass('highlighted focused');
   relevant.removeClass('dimmed').addClass('highlighted');
   node.removeClass('highlighted').addClass('focused');
@@ -563,10 +477,10 @@ function focusNode(node) {
 function focusEdge(edge) {
   cy.elements().addClass('dimmed').removeClass('highlighted focused');
   edge.removeClass('dimmed').addClass('highlighted');
-  edge.source().removeClass('dimmed').addClass('highlighted');
-  edge.target().removeClass('dimmed').addClass('highlighted');
-  edge.source().descendants().removeClass('dimmed');
-  edge.target().descendants().removeClass('dimmed');
+  [edge.source(), edge.target()].forEach(n => {
+    n.removeClass('dimmed').addClass('highlighted');
+    n.descendants().removeClass('dimmed');
+  });
 }
 
 // ── tap handlers ──────────────────────────────────────────────────────────────
@@ -574,24 +488,16 @@ function onNodeTap(e) {
   const node = e.target;
   const data = node.data();
 
-  // child node inside an expanded subnet
   if (data.isChild) {
     showMemberPanel(data);
-    // highlight parent compound + its edges
     const parent = cy.getElementById(data.parentSubnet);
     if (parent.length) focusNode(parent);
     return;
   }
 
-  // subnet with members: toggle expand
   if (!data.virtual && data.members && data.members.length > 0) {
-    if (expandedNodes.has(data.id)) {
-      collapseNode(data.id);
-    } else {
-      expandNode(data.id);
-    }
+    expandedNodes.has(data.id) ? collapseNode(data.id) : expandNode(data.id);
   }
-
   focusNode(node);
   showNodePanel(data);
 }
@@ -613,55 +519,43 @@ function setHeader(title, sub) {
 }
 
 function showNodePanel(data) {
-  const isAny = data.id === '__ANY__';
-  setHeader(
-    isAny ? '⬡ ANY — catch-all node' : data.label,
-    data.cidr || (data.virtual ? 'Virtual / catch-all' : '')
-  );
+  setHeader(data.id === '__ANY__' ? '⬡ ANY — catch-all' : data.label,
+            data.cidr || (data.virtual ? 'Virtual / catch-all' : ''));
 
+  const members  = data.members || [];
+  const relPols  = getRelatedPolicies(data.id);
   let html = '<div class="panel-cols">';
 
-  // members column
-  const members = data.members || [];
+  // members
   html += `<div class="panel-col"><div class="col-title">Members (${members.length})</div>`;
   if (members.length > 0) {
     html += '<table class="data-table"><thead><tr><th>Name</th><th>Type</th><th>Address</th></tr></thead><tbody>';
-    for (const m of members) {
+    for (const m of members)
       html += `<tr><td>${esc(m.name)}</td><td>${esc(m.type)}</td><td style="font-family:monospace;font-size:10px">${esc(m.address)}</td></tr>`;
-    }
     html += '</tbody></table>';
-    if (members.length > 0 && !expandedNodes.has(data.id)) {
-      html += `<div style="margin-top:6px;font-size:10px;color:var(--text-dim)">↑ Click node on graph to expand members</div>`;
-    }
   } else if (data.virtual) {
-    html += '<p style="font-size:11px;color:var(--text-dim);padding:4px 0">Represents any address not in a specific subnet.</p>';
+    html += '<p style="font-size:11px;color:var(--text-dim)">Represents any address not in a specific subnet.</p>';
   } else {
-    html += '<p style="font-size:11px;color:var(--text-dim);padding:4px 0">No member objects.</p>';
+    html += '<p style="font-size:11px;color:var(--text-dim)">No member objects.</p>';
   }
   html += '</div>';
 
-  // policies column
-  const relPols = getRelatedPolicies(data.id);
+  // policies
   html += `<div class="panel-col"><div class="col-title">Related Policies (${relPols.length})</div>`;
   if (relPols.length > 0) {
     html += '<table class="data-table"><thead><tr><th>#</th><th>Name</th><th>Action</th><th>Status</th></tr></thead><tbody>';
     for (const p of relPols) {
       const ac = p.action.toLowerCase();
-      html += `<tr>
-        <td>${esc(p.id)}</td><td>${esc(p.name)}</td>
+      html += `<tr><td>${esc(p.id)}</td><td>${esc(p.name)}</td>
         <td><span class="tag tag-${ac}">${esc(p.action)}</span></td>
-        <td><span class="tag ${p.enabled ? 'tag-on' : 'tag-off'}">${p.enabled ? 'ON' : 'OFF'}</span></td>
-      </tr>`;
+        <td><span class="tag ${p.enabled?'tag-on':'tag-off'}">${p.enabled?'ON':'OFF'}</span></td></tr>`;
     }
     html += '</tbody></table>';
   } else {
-    html += '<p style="font-size:11px;color:var(--text-dim);padding:4px 0">No policies found.</p>';
+    html += '<p style="font-size:11px;color:var(--text-dim)">No policies found.</p>';
   }
   html += '</div></div>';
-
-  if (data.comment) {
-    html += `<div style="margin-top:10px;font-size:11px;color:var(--text-dim)">💬 ${esc(data.comment)}</div>`;
-  }
+  if (data.comment) html += `<div style="margin-top:8px;font-size:11px;color:var(--text-dim)">💬 ${esc(data.comment)}</div>`;
 
   document.getElementById('panel-body').innerHTML = html;
   openPanel();
@@ -669,32 +563,29 @@ function showNodePanel(data) {
 
 function showMemberPanel(data) {
   setHeader(data.label, data.address || '');
-
+  const subPols = getRelatedPolicies(data.parentSubnet);
   let html = '<div class="panel-cols">';
 
-  html += '<div class="panel-col"><div class="col-title">Details</div>';
-  html += `<table class="data-table"><tbody>
-    <tr><td style="color:var(--text-dim);width:80px">Type</td><td>${esc(data.type)}</td></tr>
-    <tr><td style="color:var(--text-dim)">Address</td><td style="font-family:monospace">${esc(data.address)}</td></tr>
-    ${data.comment ? `<tr><td style="color:var(--text-dim)">Comment</td><td>${esc(data.comment)}</td></tr>` : ''}
-    <tr><td style="color:var(--text-dim)">Subnet</td><td>${esc(data.parentSubnet)}</td></tr>
-  </tbody></table></div>`;
+  html += `<div class="panel-col"><div class="col-title">Object Details</div>
+    <table class="data-table"><tbody>
+      <tr><td style="color:var(--text-dim);width:72px">Type</td><td>${esc(data.type)}</td></tr>
+      <tr><td style="color:var(--text-dim)">Address</td><td style="font-family:monospace">${esc(data.address)}</td></tr>
+      ${data.comment?`<tr><td style="color:var(--text-dim)">Comment</td><td>${esc(data.comment)}</td></tr>`:''}
+      <tr><td style="color:var(--text-dim)">Subnet</td><td>${esc(data.parentSubnet)}</td></tr>
+    </tbody></table></div>`;
 
-  const subnetPols = getRelatedPolicies(data.parentSubnet);
-  html += `<div class="panel-col"><div class="col-title">Subnet Policies (${subnetPols.length})</div>`;
-  if (subnetPols.length > 0) {
+  html += `<div class="panel-col"><div class="col-title">Subnet Policies (${subPols.length})</div>`;
+  if (subPols.length > 0) {
     html += '<table class="data-table"><thead><tr><th>#</th><th>Name</th><th>Action</th><th>Status</th></tr></thead><tbody>';
-    for (const p of subnetPols) {
+    for (const p of subPols) {
       const ac = p.action.toLowerCase();
-      html += `<tr>
-        <td>${esc(p.id)}</td><td>${esc(p.name)}</td>
+      html += `<tr><td>${esc(p.id)}</td><td>${esc(p.name)}</td>
         <td><span class="tag tag-${ac}">${esc(p.action)}</span></td>
-        <td><span class="tag ${p.enabled ? 'tag-on' : 'tag-off'}">${p.enabled ? 'ON' : 'OFF'}</span></td>
-      </tr>`;
+        <td><span class="tag ${p.enabled?'tag-on':'tag-off'}">${p.enabled?'ON':'OFF'}</span></td></tr>`;
     }
     html += '</tbody></table>';
   } else {
-    html += '<p style="font-size:11px;color:var(--text-dim);padding:4px 0">No policies found.</p>';
+    html += '<p style="font-size:11px;color:var(--text-dim)">No policies found.</p>';
   }
   html += '</div></div>';
 
@@ -704,8 +595,7 @@ function showMemberPanel(data) {
 
 function showEdgePanel(data) {
   setHeader(`${data.source}  →  ${data.target}`,
-    `${data.count} polic${data.count === 1 ? 'y' : 'ies'}  ·  ${data.action.toUpperCase()}`);
-
+    `${data.count} polic${data.count===1?'y':'ies'}  ·  ${data.action.toUpperCase()}`);
   let html = '<table class="data-table"><thead><tr><th>#</th><th>Name</th><th>Source</th><th>Destination</th><th>Service</th><th>Action</th><th>Status</th></tr></thead><tbody>';
   for (const p of data.policies) {
     const ac = p.action.toLowerCase();
@@ -715,7 +605,7 @@ function showEdgePanel(data) {
       <td style="font-size:10px">${esc((p.destinations||[]).join(', '))}</td>
       <td style="font-size:10px">${esc((p.services||[]).join(', ')||'any')}</td>
       <td><span class="tag tag-${ac}">${esc(p.action)}</span></td>
-      <td><span class="tag ${p.enabled ? 'tag-on' : 'tag-off'}">${p.enabled ? 'ON' : 'OFF'}</span></td>
+      <td><span class="tag ${p.enabled?'tag-on':'tag-off'}">${p.enabled?'ON':'OFF'}</span></td>
     </tr>`;
   }
   html += '</tbody></table>';
@@ -728,17 +618,14 @@ function getRelatedPolicies(nodeId) {
   const seen = new Set(), result = [];
   for (const e of topologyData.edges) {
     if (e.source === nodeId || e.target === nodeId) {
-      for (const p of e.policies) {
+      for (const p of e.policies)
         if (!seen.has(p.id)) { seen.add(p.id); result.push(p); }
-      }
     }
   }
   return result;
 }
 
-function isVirtual(id) {
-  return id === '__ANY__' || (id.startsWith('[') && id.endsWith(']'));
-}
+function isVirtual(id) { return id === '__ANY__' || (id.startsWith('[') && id.endsWith(']')); }
 
 function esc(s) {
   if (!s) return '';
@@ -748,16 +635,12 @@ function esc(s) {
 let toastTimer = null;
 function toast(msg) {
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.classList.add('show');
+  el.textContent = msg; el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-function applyTopology(data) {
-  topologyData = data;
-  buildGraph(data);
-}
+function applyTopology(data) { topologyData = data; buildGraph(data); }
 
 function updateStats() {
   const n = topologyData.nodes ? topologyData.nodes.length : 0;
@@ -766,40 +649,44 @@ function updateStats() {
     n > 0 ? `${n} nodes · ${e} connections` : 'No data loaded';
 }
 
-// ── toolbar wiring ────────────────────────────────────────────────────────────
-document.getElementById('btn-addr').addEventListener('click', () =>
-  document.getElementById('file-addr').click());
-document.getElementById('btn-pol').addEventListener('click', () =>
-  document.getElementById('file-pol').click());
+// ── toolbar ───────────────────────────────────────────────────────────────────
+document.getElementById('btn-addr').addEventListener('click', () => document.getElementById('file-addr').click());
+document.getElementById('btn-pol').addEventListener('click',  () => document.getElementById('file-pol').click());
 
 document.getElementById('file-addr').addEventListener('change', async function() {
   if (!this.files[0]) return;
-  const text = await this.files[0].text();
-  this.value = '';
-  const res  = await fetch('/api/upload/addresses', { method: 'POST', body: text });
-  applyTopology(await res.json());
+  const text = await this.files[0].text(); this.value = '';
+  applyTopology(await (await fetch('/api/upload/addresses', {method:'POST', body:text})).json());
   toast('Addresses loaded');
 });
 
 document.getElementById('file-pol').addEventListener('change', async function() {
   if (!this.files[0]) return;
-  const text = await this.files[0].text();
-  this.value = '';
-  const res  = await fetch('/api/upload/policies', { method: 'POST', body: text });
-  applyTopology(await res.json());
+  const text = await this.files[0].text(); this.value = '';
+  applyTopology(await (await fetch('/api/upload/policies', {method:'POST', body:text})).json());
   toast('Policies loaded');
 });
 
-document.getElementById('btn-fit').addEventListener('click', () => {
-  if (cy) cy.fit(undefined, 60);
+document.getElementById('btn-fit').addEventListener('click', () => cy && cy.fit(undefined, 60));
+
+document.getElementById('btn-relayout').addEventListener('click', () => {
+  if (!cy) return;
+  cy.layout(initialLayout()).run();
+  toast('Re-running layout…');
+});
+
+document.getElementById('btn-export').addEventListener('click', () => {
+  if (!cy) return;
+  const png = cy.png({ scale: 2, bg: '#0f1923', full: true });
+  const a = document.createElement('a');
+  a.href = png; a.download = 'fw-topology.png'; a.click();
+  toast('Exported PNG');
 });
 
 document.getElementById('btn-clear').addEventListener('click', async () => {
-  await fetch('/api/clear', { method: 'POST' });
-  topologyData = { nodes: [], edges: [] };
-  buildGraph(topologyData);
-  updateStats();
-  toast('Cleared');
+  await fetch('/api/clear', {method:'POST'});
+  topologyData = {nodes:[], edges:[]};
+  buildGraph(topologyData); updateStats(); toast('Cleared');
 });
 
 document.getElementById('any-toggle').addEventListener('click', function() {
@@ -815,17 +702,21 @@ document.getElementById('search').addEventListener('input', function() {
   cy.nodes().forEach(n => {
     if (n.data('isChild')) return;
     const match = n.id().toLowerCase().includes(q);
-    n.removeClass('dimmed highlighted focused');
-    n.addClass(match ? 'highlighted' : 'dimmed');
+    n.removeClass('dimmed highlighted focused').addClass(match ? 'highlighted' : 'dimmed');
+    // auto-pan to first match
+    if (match && this._firstMatch !== n.id()) {
+      this._firstMatch = n.id();
+      cy.animate({ center: { eles: n }, zoom: Math.max(cy.zoom(), 0.8) }, { duration: 300 });
+    }
   });
+  if (!q) this._firstMatch = null;
 });
 
 // ── init ──────────────────────────────────────────────────────────────────────
 document.getElementById('any-toggle').classList.add('active');
-
 fetch('/api/topology')
   .then(r => r.json())
-  .then(data => { if (data.nodes && data.nodes.length > 0) applyTopology(data); })
+  .then(d => { if (d.nodes && d.nodes.length > 0) applyTopology(d); })
   .catch(() => {});
 </script>
 </body>
