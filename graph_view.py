@@ -192,8 +192,8 @@ class PolicyEdge(QGraphicsItem):
                         (r.bottomRight(), r.bottomLeft()),
                         (r.bottomLeft(), r.topLeft())]:
                 seg = QLineF(*pts)
-                pt  = QPointF()
-                if line_ref.intersects(seg, pt) == QLineF.IntersectionType.BoundedIntersection:
+                itype, pt = line_ref.intersects(seg)
+                if itype == QLineF.IntersectionType.BoundedIntersection and pt is not None:
                     return pt
             return QPointF(cx, cy)
 
