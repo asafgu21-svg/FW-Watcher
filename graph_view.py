@@ -364,7 +364,10 @@ class NetworkScene(QGraphicsScene):
         try:
             raw_pos = nx.kamada_kawai_layout(G)
         except Exception:
-            raw_pos = nx.spring_layout(G, seed=42)
+            try:
+                raw_pos = nx.spring_layout(G, seed=42)
+            except Exception:
+                raw_pos = nx.circular_layout(G)
 
         SCALE = 320
         for name, (rx, ry) in raw_pos.items():
