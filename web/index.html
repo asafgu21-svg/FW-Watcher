@@ -197,7 +197,7 @@ const HAS_FCOSE = !!cytoscape.prototype.fcose || (function(){
 
 // ── state ─────────────────────────────────────────────────────────────────────
 let cy = null;
-let showAny = true;
+let showAny = false;
 let topologyData = { nodes: [], edges: [] };
 let expandedNodes  = new Map(); // nodeId → [childId, …]
 let savedPositions = new Map(); // nodeId → {x, y} — original position before expand
@@ -305,16 +305,17 @@ function initialLayout() {
   if (HAS_FCOSE) {
     return {
       name: 'fcose',
-      animate: true, animationDuration: 700, padding: 90,
-      nodeSeparation: 200,
-      nodeRepulsion: 7500,
-      idealEdgeLength: 200,
-      edgeElasticity: 0.45,
-      gravity: 0.25,
-      numIter: 2500,
+      animate: true, animationDuration: 900, padding: 120,
+      nodeSeparation: 420,       // large gap so expanded compounds don't touch
+      nodeRepulsion: 22000,
+      idealEdgeLength: 320,
+      edgeElasticity: 0.55,
+      gravity: 0.18,
+      numIter: 3000,
       tile: false, randomize: true,
       quality: 'default',
       packComponents: true,
+      uniformNodeDimensions: false,
     };
   }
   return {
@@ -328,13 +329,13 @@ function incrementalLayout() {
   if (HAS_FCOSE) {
     return {
       name: 'fcose',
-      animate: true, animationDuration: 380, fit: false,
+      animate: true, animationDuration: 550, fit: false,
       randomize: false, quality: 'default',
-      initialEnergyOnIncremental: 0.3,
-      nodeSeparation: 160,
-      nodeRepulsion: 6500,
-      idealEdgeLength: 180,
-      gravity: 0.2,
+      initialEnergyOnIncremental: 0.12,  // low energy → small, smooth nudges only
+      nodeSeparation: 380,
+      nodeRepulsion: 18000,
+      idealEdgeLength: 300,
+      gravity: 0.12,
     };
   }
   return {
@@ -375,7 +376,7 @@ function buildGraph(data) {
     container: document.getElementById('cy'),
     elements,
     style: buildStyle(),
-    layout: initialLayout(),
+    layout: elements.length > 0 ? initialLayout() : { name: 'null' },
     wheelSensitivity: 0.3, minZoom: 0.05, maxZoom: 5,
   });
 
@@ -398,9 +399,11 @@ function expandNode(nodeId) {
   savedPositions.set(nodeId, { x: pos.x, y: pos.y });
 
   // 2. Lay children out in a grid centered exactly on (pos.x, pos.y)
-  const cols    = Math.min(members.length, 3);
-  const rows    = Math.ceil(members.length / cols);
-  const GAPX    = 88, GAPY = 70;
+  // Adapt grid shape to member count: 1→1col, 2→2, 3-4→2, 5-9→3, 10+→4
+  const n       = members.length;
+  const cols    = n === 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
+  const rows    = Math.ceil(n / cols);
+  const GAPX    = 100, GAPY = 80;
   const toAdd   = [];
   const childIds = [];
 
@@ -426,16 +429,8 @@ function expandNode(nodeId) {
   cy.add(toAdd);
   node.addClass('expanded');
   expandedNodes.set(nodeId, childIds);
-
-  // 3. Gently push overlapping neighbours away — don't move expanded compound itself
-  const fixedConstraints = childIds.map(id => ({
-    nodeId: id, position: cy.getElementById(id).position(),
-  }));
-  fixedConstraints.push({ nodeId, position: { x: pos.x, y: pos.y } });
-
-  const opts = incrementalLayout();
-  if (HAS_FCOSE) opts.fixedNodeConstraint = fixedConstraints;
-  cy.layout(opts).run();
+  // No layout run — children are pinned to their grid positions above.
+  // Running fcose here would reposition children and collapse them into a line.
 }
 
 function collapseNode(nodeId) {
@@ -452,9 +447,7 @@ function collapseNode(nodeId) {
   if (saved) { node.position(saved); savedPositions.delete(nodeId); }
 
   // Light re-layout to close the gap left by removed children
-  const opts = incrementalLayout();
-  if (HAS_FCOSE) opts.fixedNodeConstraint = [{ nodeId, position: node.position() }];
-  cy.layout(opts).run();
+  cy.layout(incrementalLayout()).run();
 }
 
 // ── focus ─────────────────────────────────────────────────────────────────────
@@ -656,15 +649,17 @@ document.getElementById('btn-pol').addEventListener('click',  () => document.get
 document.getElementById('file-addr').addEventListener('change', async function() {
   if (!this.files[0]) return;
   const text = await this.files[0].text(); this.value = '';
-  applyTopology(await (await fetch('/api/upload/addresses', {method:'POST', body:text})).json());
-  toast('Addresses loaded');
+  const data = await (await fetch('/api/upload/addresses', {method:'POST', body:text})).json();
+  applyTopology(data);
+  toast(`Addresses loaded · ${data.vendor || 'Unknown'}`);
 });
 
 document.getElementById('file-pol').addEventListener('change', async function() {
   if (!this.files[0]) return;
   const text = await this.files[0].text(); this.value = '';
-  applyTopology(await (await fetch('/api/upload/policies', {method:'POST', body:text})).json());
-  toast('Policies loaded');
+  const data = await (await fetch('/api/upload/policies', {method:'POST', body:text})).json();
+  applyTopology(data);
+  toast(`Policies loaded · ${data.vendor || 'Unknown'}`);
 });
 
 document.getElementById('btn-fit').addEventListener('click', () => cy && cy.fit(undefined, 60));
@@ -713,7 +708,7 @@ document.getElementById('search').addEventListener('input', function() {
 });
 
 // ── init ──────────────────────────────────────────────────────────────────────
-document.getElementById('any-toggle').classList.add('active');
+// ANY is off by default — button starts inactive
 fetch('/api/topology')
   .then(r => r.json())
   .then(d => { if (d.nodes && d.nodes.length > 0) applyTopology(d); })

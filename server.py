@@ -9,7 +9,7 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_from_directory
 
 from models import NetworkTopology
-from parsers import parse_addresses, parse_policies
+from parsers import parse_addresses, parse_policies, list_vendors
 
 # ── state ──────────────────────────────────────────────────────────────────────
 topology = NetworkTopology()
@@ -24,23 +24,33 @@ def index():
     return send_from_directory("web", "index.html")
 
 
+# ── helpers ────────────────────────────────────────────────────────────────────
+def _pop_vendor(warns: list[str]) -> tuple[str, list[str]]:
+    """Extract the 'Detected vendor: X' prefix injected by the registry."""
+    if warns and warns[0].startswith("Detected vendor: "):
+        return warns[0][len("Detected vendor: "):], warns[1:]
+    return "Unknown", warns
+
+
 # ── API ────────────────────────────────────────────────────────────────────────
 @app.route("/api/upload/addresses", methods=["POST"])
 def upload_addresses():
     content = request.data.decode("utf-8-sig", errors="replace")
     addrs, warns = parse_addresses(content)
+    vendor, warns = _pop_vendor(warns)
     for a in addrs.values():
         topology.add_address(a)
-    return jsonify({**_topology_json(), "warnings": warns})
+    return jsonify({**_topology_json(), "warnings": warns, "vendor": vendor})
 
 
 @app.route("/api/upload/policies", methods=["POST"])
 def upload_policies():
     content = request.data.decode("utf-8-sig", errors="replace")
     pols, warns = parse_policies(content)
+    vendor, warns = _pop_vendor(warns)
     for p in pols:
         topology.add_policy(p)
-    return jsonify({**_topology_json(), "warnings": warns})
+    return jsonify({**_topology_json(), "warnings": warns, "vendor": vendor})
 
 
 @app.route("/api/topology")
@@ -52,6 +62,11 @@ def get_topology():
 def clear():
     topology.clear()
     return jsonify({"nodes": [], "edges": [], "warnings": []})
+
+
+@app.route("/api/vendors")
+def get_vendors():
+    return jsonify({"vendors": list_vendors()})
 
 
 # ── serialiser ─────────────────────────────────────────────────────────────────
@@ -93,9 +108,7 @@ def _topology_json() -> dict:
     for c in conns:
         if c["all_disabled"]:
             action = "disabled"
-        elif c["has_accept"] and c["has_deny"]:
-            action = "mixed"
-        elif c["has_accept"]:
+        elif c["winning_action"] == "ACCEPT":
             action = "accept"
         else:
             action = "deny"
@@ -136,5 +149,5 @@ def _open_browser():
 
 if __name__ == "__main__":
     threading.Thread(target=_open_browser, daemon=True).start()
-    print("FW Watcher starting → http://localhost:5789")
+    print("FW Watcher starting -> http://localhost:5789")
     app.run(host="127.0.0.1", port=5789, debug=False)

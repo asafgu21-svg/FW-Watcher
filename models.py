@@ -214,15 +214,24 @@ class NetworkTopology:
                     key = (src, dst)
                     conn_map.setdefault(key, []).append(policy)
 
+        def _pid_key(p: PolicyObject):
+            try:
+                return (0, int(p.policy_id))
+            except (ValueError, TypeError):
+                return (1, str(p.policy_id))
+
         self._connections = []
         for (src, dst), pols in conn_map.items():
+            pols.sort(key=_pid_key)
+            enabled = [p for p in pols if p.is_enabled]
             self._connections.append({
                 "src": src,
                 "dst": dst,
                 "policies": pols,
-                "has_accept": any(p.is_accept and p.is_enabled for p in pols),
-                "has_deny": any(not p.is_accept and p.is_enabled for p in pols),
-                "all_disabled": all(not p.is_enabled for p in pols),
+                "has_accept": any(p.is_accept for p in enabled),
+                "has_deny":   any(not p.is_accept for p in enabled),
+                "all_disabled": not enabled,
+                "winning_action": enabled[0].action_label if enabled else None,
                 "count": len(pols),
             })
 
@@ -255,4 +264,5 @@ class NetworkTopology:
                     for pol in c["policies"]:
                         _add(pol)
 
+        result.sort(key=lambda p: (0, int(p.policy_id)) if p.policy_id.isdigit() else (1, p.policy_id))
         return result
