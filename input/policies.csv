@@ -1,0 +1,16 @@
+#,Name,From,To,Source,Destination,Service,Action,Status,NAT,Comment
+1,LAN-to-DMZ-Web,port1,port2,LAN,Server-Web,HTTP HTTPS,ACCEPT,enable,,LAN users access web server
+2,LAN-to-Internet,port1,port3,LAN-Users,all,HTTP HTTPS DNS,ACCEPT,enable,enable,Internet access with NAT
+3,Block-DMZ-to-LAN,port2,port1,DMZ,LAN,ALL,DENY,enable,,Prevent DMZ from reaching internal LAN
+4,Web-to-DB,port2,port2,Server-Web,Server-DB,MySQL,ACCEPT,enable,,Web server to database
+5,Mail-Inbound,port3,port2,all,Server-Mail,SMTP,ACCEPT,enable,,Allow inbound mail from internet
+6,Mail-Outbound,port2,port3,Server-Mail,all,SMTP,ACCEPT,enable,enable,Outbound mail with NAT
+7,MGMT-to-DMZ,port4,port2,MGMT-Devices,DMZ-Servers,SSH HTTPS,ACCEPT,enable,,Admin access to DMZ servers
+8,MGMT-to-LAN,port4,port1,MGMT-Devices,LAN,SSH HTTPS,ACCEPT,enable,,Admin access to LAN
+9,VPN-to-LAN,any,port1,Range-VPN,LAN,ALL,ACCEPT,enable,,VPN clients full LAN access
+10,VPN-to-DMZ,any,port2,Range-VPN,DMZ,HTTP HTTPS SSH,ACCEPT,enable,,VPN clients DMZ access
+11,Block-WAN-Inbound,port3,port1,all,LAN,ALL,DENY,enable,,Block all unsolicited inbound
+12,Block-WAN-to-MGMT,port3,port4,all,MGMT,ALL,DENY,enable,,Protect management network
+13,Disabled-Test-Rule,port1,port3,LAN,all,FTP,ACCEPT,disable,,FTP rule disabled for testing
+14,DMZ-to-Internet,port2,port3,DMZ-Servers,all,HTTP HTTPS DNS,ACCEPT,enable,enable,DMZ servers internet access
+15,LAN-to-Mail,port1,port2,LAN-Users,Server-Mail,SMTP IMAP POP3,ACCEPT,enable,,Internal mail access

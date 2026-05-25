@@ -1,0 +1,20 @@
+Name,Type,Subnet,Interface,Comment,Members
+LAN,ipmask,192.168.1.0 255.255.255.0,port1,Internal LAN,
+DMZ,ipmask,10.10.10.0 255.255.255.0,port2,DMZ Network,
+WAN,ipmask,203.0.113.0 255.255.255.0,port3,External WAN Subnet,
+MGMT,ipmask,172.16.0.0 255.255.255.0,port4,Management Network,
+Server-Web,ipmask,10.10.10.10 255.255.255.255,port2,Primary Web Server,
+Server-DB,ipmask,10.10.10.20 255.255.255.255,port2,Database Server,
+Server-Mail,ipmask,10.10.10.30 255.255.255.255,port2,Mail Server,
+PC-001,ipmask,192.168.1.10 255.255.255.255,port1,Finance Workstation,
+PC-002,ipmask,192.168.1.20 255.255.255.255,port1,HR Workstation,
+PC-003,ipmask,192.168.1.30 255.255.255.255,port1,Dev Workstation,
+Firewall-Mgmt,ipmask,172.16.0.1 255.255.255.255,port4,Firewall Management IP,
+Switch-Core,ipmask,172.16.0.10 255.255.255.255,port4,Core Switch,
+Range-DHCP,iprange,192.168.1.100-192.168.1.200,port1,DHCP Pool,
+Range-VPN,iprange,10.20.30.1-10.20.30.50,any,VPN Client Pool,
+external-dns,fqdn,,,External DNS Server (Google),
+all,ipmask,0.0.0.0 0.0.0.0,any,Any/All traffic,,
+DMZ-Servers,group,,,All DMZ Servers,Server-Web Server-DB Server-Mail
+LAN-Users,group,,,All LAN Workstations,PC-001 PC-002 PC-003
+MGMT-Devices,group,,,Management Devices,Firewall-Mgmt Switch-Core
