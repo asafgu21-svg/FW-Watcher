@@ -9,10 +9,10 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg:        #0f1923;
-    --panel-bg:  #131f2e;
-    --toolbar-bg:#0a1520;
-    --border:    #1e3a52;
+    --bg:        #252d3a;
+    --panel-bg:  #2a3447;
+    --toolbar-bg:#1a2233;
+    --border:    #2d3748;
     --text:      #c9d8e8;
     --text-dim:  #4a6580;
     --accent:    #0078d4;
@@ -21,6 +21,12 @@
     --mixed:     #f59e0b;
     --disabled:  #607d8b;
     --any:       #a855f7;
+    --zone-group:      #3b82f6;
+    --zone-dmz:        #f59e0b;
+    --zone-external:   #f87171;
+    --zone-internal:   #34d399;
+    --zone-management: #22d3ee;
+    --zone-other:      #6b7280;
   }
   html, body { height: 100%; overflow: hidden; font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
 
@@ -59,6 +65,7 @@
   }
   .legend-item { display: flex; align-items: center; gap: 5px; }
   .legend-dot  { width: 8px; height: 8px; border-radius: 50%; }
+  .legend-ring { width: 9px; height: 9px; border-radius: 50%; border: 2px solid; background: transparent; }
 
   #main        { display: flex; flex-direction: column; height: calc(100vh - 90px); }
   #graph-area  { flex: 1; position: relative; overflow: hidden; }
@@ -105,7 +112,75 @@
 
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #2a3f55; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+
+  /* ── process-tag controls ── */
+  #tag-name-input {
+    padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);
+    background: #162334; color: var(--text); font-size: 12px; width: 148px;
+    outline: none; transition: border-color .15s;
+  }
+  #tag-name-input:focus { border-color: #8b5cf6; }
+  #tag-name-input::placeholder { color: var(--text-dim); }
+  #btn-create-tag { border-color: #4c2d7a; color: #c4a0f0; }
+  #btn-create-tag:hover { border-color: #8b5cf6; background: #2d1b52; }
+  #tag-filter {
+    padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
+    background: #162334; color: var(--text); font-size: 12px;
+    outline: none; cursor: pointer; max-width: 160px;
+  }
+  #tag-filter:focus { border-color: #8b5cf6; }
+  #tag-filter option { background: #1e2a3a; }
+  #btn-clear-tag-filter { border-color: #8b5cf6; color: #c4a0f0; }
+  #btn-clear-tag-filter:hover { border-color: var(--deny); color: var(--deny); }
+  .tag-assign-sel {
+    padding: 2px 4px; border-radius: 4px; border: 1px solid #2d3748;
+    background: #111c2a; color: #8b5cf6; font-size: 10px; cursor: pointer;
+    max-width: 120px;
+  }
+  .tag-assign-sel:focus { outline: none; border-color: #8b5cf6; }
+  .tag-assign-sel option { background: #1e2a3a; }
+  .process-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 5px 1px 7px; border-radius: 10px;
+    font-size: 10px; font-weight: 600;
+    background: #1e0f3a; color: #c4a0f0; border: 1px solid #4c2d7a;
+  }
+  .tag-remove-btn {
+    background: none; border: none; color: #c4a0f0; cursor: pointer;
+    font-size: 10px; line-height: 1; padding: 0 1px; opacity: 0.7;
+  }
+  .tag-remove-btn:hover { opacity: 1; color: var(--deny); }
+
+  /* ── right-click context menu ── */
+  #ctx-menu {
+    position: fixed; z-index: 9999; display: none;
+    background: #1a2233; border: 1px solid #2d3748; border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.6); min-width: 180px; padding: 4px 0;
+    font-size: 12px;
+  }
+  .ctx-title {
+    padding: 6px 14px 4px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .6px; color: var(--text-dim);
+  }
+  .ctx-item {
+    padding: 7px 14px; color: var(--text); cursor: pointer;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .ctx-item:hover { background: #1e344f; }
+  .ctx-dot {
+    width: 9px; height: 9px; border-radius: 50%; border: 2px solid;
+    background: transparent; flex-shrink: 0;
+  }
+  .ctx-sep { height: 1px; background: var(--border); margin: 3px 0; }
+  .ctx-remove { color: var(--deny); }
+  .ctx-remove:hover { background: #2e0c18; }
+  #btn-clear-layers  { border-color: #1a5c37; color: var(--accept); }
+  #btn-clear-layers:hover { background: #0c2e1c; }
+  #btn-clear-edge-tags { border-color: #4c2d7a; color: #c4a0f0; }
+  #btn-clear-edge-tags:hover { background: #2d1b52; }
+  #btn-bulk-actions { border-color: #f59e0b; color: #f59e0b; font-weight: 600; }
+  #btn-bulk-actions:hover { background: #2a1e0d; border-color: #fbbf24; }
 </style>
 </head>
 <body>
@@ -149,18 +224,40 @@
   <div class="tb-sep"></div>
   <span id="stats">No data loaded</span>
 
+  <div class="tb-sep"></div>
+  <input id="tag-name-input" type="text" placeholder="New process tag…" autocomplete="off" />
+  <button class="tb-btn" id="btn-create-tag">+ Tag</button>
+  <select id="tag-filter" title="Isolate graph by process tag">
+    <option value="">Filter by tag…</option>
+  </select>
+  <button class="tb-btn" id="btn-clear-tag-filter" style="display:none" title="Clear tag filter">✕ Filter</button>
+
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="btn-clear-layers" title="Reset all nodes to Unassigned layer">↺ Node Layers</button>
+  <button class="tb-btn" id="btn-clear-edge-tags" title="Remove all process tags from all policies">↺ Edge Tags</button>
+  <button class="tb-btn" id="btn-bulk-actions" style="display:none" title="Open actions menu for selected nodes">⬡ Bulk (0)</button>
+
   <input type="file" id="file-addr" accept=".csv" style="display:none" />
   <input type="file" id="file-pol"  accept=".csv" style="display:none" />
 </div>
 
 <div id="legend">
-  <span style="font-weight:600;color:var(--text)">Legend:</span>
+  <span style="font-weight:600;color:var(--text)">Edges:</span>
   <span class="legend-item"><span class="legend-dot" style="background:var(--accept)"></span>Accept</span>
   <span class="legend-item"><span class="legend-dot" style="background:var(--deny)"></span>Deny</span>
   <span class="legend-item"><span class="legend-dot" style="background:var(--mixed)"></span>Mixed</span>
   <span class="legend-item"><span class="legend-dot" style="background:var(--disabled)"></span>Disabled</span>
-  <span class="legend-item"><span class="legend-dot" style="background:var(--any)"></span>ANY</span>
-  <span class="legend-item" style="margin-left:6px;font-style:italic">Click group to view details · Use panel button to expand/collapse · Drag to reposition</span>
+  <span class="legend-sep" style="width:1px;height:14px;background:var(--border);margin:0 4px"></span>
+  <span style="font-weight:600;color:var(--text)">Zones:</span>
+  <span class="legend-item"><span class="legend-ring" style="border-color:var(--zone-internal)"></span>Internal</span>
+  <span class="legend-item"><span class="legend-ring" style="border-color:var(--zone-dmz)"></span>DMZ</span>
+  <span class="legend-item"><span class="legend-ring" style="border-color:var(--zone-external)"></span>External</span>
+  <span class="legend-item"><span class="legend-ring" style="border-color:var(--zone-management)"></span>Management</span>
+  <span class="legend-item"><span class="legend-ring" style="border-color:var(--zone-group)"></span>Group</span>
+  <span class="legend-item"><span class="legend-ring" style="border-color:var(--any)"></span>ANY</span>
+  <span class="legend-item"><span class="legend-ring" style="border-color:var(--zone-other)"></span>Other</span>
+  <span class="legend-sep" style="width:1px;height:14px;background:var(--border);margin:0 4px"></span>
+  <span class="legend-item" style="font-style:italic">Ring = k-core centrality (inner = hub) · Node size = degree · Edge width = policies · Double-click to expand</span>
 </div>
 
 <div id="main">
@@ -186,6 +283,7 @@
   </div>
 </div>
 
+<div id="ctx-menu"></div>
 <div id="toast"></div>
 
 <script>
@@ -204,37 +302,367 @@ let savedPositions = new Map(); // nodeId → {x, y} — original position befor
 
 const EDGE_COLOR = { accept:'#17c97e', deny:'#f04060', mixed:'#f59e0b', disabled:'#607d8b' };
 
+// ── process-tag registry ──────────────────────────────────────────────────────
+const tagRegistry = new Map(); // tagName → Set<policyId (string)>
+let activeFilterTag = null;
+let _currentEdgePanelData = null; // edge data currently shown in the detail panel
+
+// ── node layer overrides ──────────────────────────────────────────────────────
+const nodeZoneOverrides = new Map(); // nodeId → zoneName ('' = unassigned/other)
+let _ctxNodeId = null; // node targeted by the active context menu
+
+// ── multi-selection ───────────────────────────────────────────────────────────
+const selectedNodeIds = new Set();  // IDs of user multi-selected nodes
+let _multiSelectActive = false;
+let _groupGrabPositions = null;     // Map<nodeId, {x,y}> at grab start for group drag
+const pinnedNodeIds = new Set();    // Nodes dropped manually — excluded from spring nudge
+
+// ── spring physics constants ──────────────────────────────────────────────────
+const SPRING_REST = 220;  // natural resting distance between connected nodes (px)
+const SPRING_K    = 0.10; // spring stiffness
+const SPRING_DAMP = 0.15; // velocity damping per frame
+
+let _physicsFrame = null;
+const _nodeVel = {};      // nodeId → { vx, vy }
+let _grabOrigin = null;   // position at grab start — used to distinguish click from drag
+
+// ── process-tag functions ─────────────────────────────────────────────────────
+function _saveTags() {
+  const obj = {};
+  for (const [name, set] of tagRegistry) obj[name] = [...set];
+  try { localStorage.setItem('fw-watcher-tags', JSON.stringify(obj)); } catch {}
+}
+
+function loadTags() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('fw-watcher-tags') || '{}');
+    for (const [name, ids] of Object.entries(stored))
+      tagRegistry.set(name, new Set(ids.map(String)));
+  } catch {}
+  _syncTagDropdowns();
+}
+
+function createTag(name) {
+  name = name.trim();
+  if (!name) return;
+  if (!tagRegistry.has(name)) tagRegistry.set(name, new Set());
+  _syncTagDropdowns();
+  _saveTags();
+  toast(`Tag "${name}" created`);
+}
+
+function getPolicyTag(policyId) {
+  policyId = String(policyId);
+  for (const [name, set] of tagRegistry)
+    if (set.has(policyId)) return name;
+  return null;
+}
+
+function assignTag(tagName, policyId) {
+  policyId = String(policyId);
+  for (const set of tagRegistry.values()) set.delete(policyId);
+  if (tagName && tagRegistry.has(tagName)) tagRegistry.get(tagName).add(policyId);
+  _saveTags();
+  _refreshEdgePanelTags();
+  if (activeFilterTag) applyTagFilter(activeFilterTag);
+}
+
+function applyTagFilter(tagName) {
+  activeFilterTag = tagName;
+  const clearBtn = document.getElementById('btn-clear-tag-filter');
+  if (clearBtn) clearBtn.style.display = tagName ? '' : 'none';
+  if (!tagName || !cy) return;
+
+  const policyIds = tagRegistry.get(tagName) || new Set();
+  const taggedEdges = cy.edges().filter(edge =>
+    (edge.data('policies') || []).some(p => policyIds.has(String(p.id)))
+  );
+
+  cy.elements().addClass('dimmed').removeClass('highlighted focused');
+  taggedEdges.removeClass('dimmed').addClass('highlighted');
+  taggedEdges.connectedNodes().removeClass('dimmed');
+}
+
+function clearTagFilter() {
+  activeFilterTag = null;
+  const sel = document.getElementById('tag-filter');
+  if (sel) sel.value = '';
+  const clearBtn = document.getElementById('btn-clear-tag-filter');
+  if (clearBtn) clearBtn.style.display = 'none';
+  if (cy) cy.elements().removeClass('dimmed highlighted focused');
+}
+
+function _syncTagDropdowns() {
+  const filterSel = document.getElementById('tag-filter');
+  if (!filterSel) return;
+  const prev = filterSel.value;
+  while (filterSel.options.length > 1) filterSel.remove(1);
+  for (const name of tagRegistry.keys()) {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    filterSel.appendChild(opt);
+  }
+  filterSel.value = prev;
+  _refreshEdgePanelTags();
+}
+
+function _tagCellHtml(policyId) {
+  const pid = String(policyId);
+  const current = getPolicyTag(pid) || '';
+  let html = `<select class="tag-assign-sel" data-policy-id="${esc(pid)}">
+    <option value="">— tag —</option>`;
+  for (const name of tagRegistry.keys())
+    html += `<option value="${esc(name)}"${name === current ? ' selected' : ''}>${esc(name)}</option>`;
+  html += `</select>`;
+  if (current) html += ` <span class="process-chip">${esc(current)}<button class="tag-remove-btn" data-policy-id="${pid}" title="Remove tag">✕</button></span>`;
+  return html;
+}
+
+function _refreshEdgePanelTags() {
+  if (!_currentEdgePanelData) return;
+  document.querySelectorAll('#panel-body tr[data-policy-id]').forEach(row => {
+    const cell = row.querySelector('.policy-tag-cell');
+    if (cell) cell.innerHTML = _tagCellHtml(row.dataset.policyId);
+    // re-wire the newly rebuilt select
+    const sel = row.querySelector('.tag-assign-sel');
+    if (sel) sel.addEventListener('change', e => assignTag(e.target.value, e.target.dataset.policyId));
+    const xBtn = row.querySelector('.tag-remove-btn');
+    if (xBtn) xBtn.addEventListener('click', e => { e.stopPropagation(); assignTag('', e.target.dataset.policyId); });
+  });
+}
+
+// ── node layer (zone) functions ───────────────────────────────────────────────
+function _saveNodeZones() {
+  const obj = {};
+  for (const [id, zone] of nodeZoneOverrides) obj[id] = zone;
+  try { localStorage.setItem('fw-watcher-zones', JSON.stringify(obj)); } catch {}
+}
+
+function loadNodeZones() {
+  try {
+    const stored = JSON.parse(localStorage.getItem('fw-watcher-zones') || '{}');
+    for (const [id, zone] of Object.entries(stored)) nodeZoneOverrides.set(id, zone);
+  } catch {}
+}
+
+function assignNodeZone(nodeId, zoneName) {
+  if (zoneName) nodeZoneOverrides.set(nodeId, zoneName);
+  else nodeZoneOverrides.delete(nodeId);
+  _saveNodeZones();
+  // Live-update the node's data attribute so zone-color CSS selectors reapply immediately
+  if (cy) {
+    const node = cy.getElementById(nodeId);
+    if (node.length) node.data('zone', zoneName || 'other');
+  }
+  const label = zoneName ? zoneName.charAt(0).toUpperCase() + zoneName.slice(1) : 'Unassigned';
+  toast(`Layer: ${nodeId} → ${label}`);
+}
+
+function clearAllNodeZones() {
+  nodeZoneOverrides.clear();
+  _saveNodeZones();
+  if (cy) cy.nodes(':orphan').forEach(n => n.data('zone', 'other'));
+  toast('All node layers cleared');
+}
+
+function clearAllEdgeTags() {
+  for (const set of tagRegistry.values()) set.clear();
+  _saveTags();
+  _refreshEdgePanelTags();
+  if (activeFilterTag) applyTagFilter(activeFilterTag);
+  toast('All edge tags cleared');
+}
+
+// ── multi-selection helpers ───────────────────────────────────────────────────
+function _updateBulkButton() {
+  const btn = document.getElementById('btn-bulk-actions');
+  if (!btn) return;
+  const n = selectedNodeIds.size;
+  btn.style.display = n >= 1 ? '' : 'none';
+  btn.textContent = n === 1 ? '⬡ Actions (1)' : `⬡ Bulk (${n})`;
+}
+
+function toggleNodeSelection(nodeId) {
+  if (!cy) return;
+  if (selectedNodeIds.has(nodeId)) {
+    selectedNodeIds.delete(nodeId);
+    cy.getElementById(nodeId).removeClass('multi-selected');
+  } else {
+    selectedNodeIds.add(nodeId);
+    cy.getElementById(nodeId).addClass('multi-selected');
+  }
+  _multiSelectActive = selectedNodeIds.size > 0;
+  _updateBulkButton();
+}
+
+function clearMultiSelection() {
+  selectedNodeIds.clear();
+  _multiSelectActive = false;
+  if (cy) cy.nodes().removeClass('multi-selected');
+  _updateBulkButton();
+}
+
+// ── bulk actions ──────────────────────────────────────────────────────────────
+function bulkAssignLayer(zoneName) {
+  selectedNodeIds.forEach(id => assignNodeZone(id, zoneName));
+  const label = zoneName ? zoneName.charAt(0).toUpperCase() + zoneName.slice(1) : 'Unassigned';
+  toast(`${selectedNodeIds.size} node(s) → ${label}`);
+}
+
+function bulkClearLayers() {
+  selectedNodeIds.forEach(id => assignNodeZone(id, ''));
+  toast(`Layers cleared from ${selectedNodeIds.size} node(s)`);
+}
+
+function _connectedEdges(nodeIds) {
+  if (!cy) return [];
+  const seen = new Set(), edges = [];
+  nodeIds.forEach(id => {
+    cy.getElementById(id).connectedEdges().forEach(edge => {
+      const connId = edge.data('connId') || edge.id();
+      if (!seen.has(connId)) { seen.add(connId); edges.push(edge); }
+    });
+  });
+  return edges;
+}
+
+function bulkTagConnectedEdges(tagName) {
+  if (!tagName) return;
+  if (!tagRegistry.has(tagName)) createTag(tagName);
+  const edges = _connectedEdges(selectedNodeIds);
+  edges.forEach(edge => (edge.data('policies') || []).forEach(p => assignTag(tagName, p.id)));
+  toast(`Tagged ${edges.length} edge(s) with "${tagName}"`);
+}
+
+function bulkClearConnectedEdgeTags() {
+  const edges = _connectedEdges(selectedNodeIds);
+  edges.forEach(edge => {
+    (edge.data('policies') || []).forEach(p => {
+      const pid = String(p.id);
+      for (const set of tagRegistry.values()) set.delete(pid);
+    });
+  });
+  _saveTags();
+  _refreshEdgePanelTags();
+  if (activeFilterTag) applyTagFilter(activeFilterTag);
+  toast(`Tags cleared from ${edges.length} connected edge(s)`);
+}
+
+// ── context menu (dynamic) ────────────────────────────────────────────────────
+const _LAYER_ITEMS = [
+  { zone: 'internal',   label: 'Internal',   color: 'var(--zone-internal)' },
+  { zone: 'dmz',        label: 'DMZ',        color: 'var(--zone-dmz)' },
+  { zone: 'external',   label: 'External',   color: 'var(--zone-external)' },
+  { zone: 'management', label: 'Management', color: 'var(--zone-management)' },
+];
+
+function _menuLayerItems() {
+  return _LAYER_ITEMS.map(l =>
+    `<div class="ctx-item" data-zone="${l.zone}"><span class="ctx-dot" style="border-color:${l.color}"></span>${l.label}</div>`
+  ).join('');
+}
+
+function showContextMenu(x, y) {
+  if (selectedNodeIds.size === 0) return;
+  const menu = document.getElementById('ctx-menu');
+  const n = selectedNodeIds.size;
+  const title = n === 1 ? 'Node Actions — 1 selected' : `Bulk Actions — ${n} selected`;
+  const tagOpts = [...tagRegistry.keys()]
+    .map(t => `<div class="ctx-item ctx-bulk-tag" data-tag="${esc(t)}">${esc(t)}</div>`).join('');
+
+  menu.innerHTML =
+    `<div class="ctx-title">${title}</div>
+     <div class="ctx-title" style="font-size:9px;padding-top:2px">Assign to Layer</div>
+     ${_menuLayerItems()}
+     <div class="ctx-item ctx-remove" id="_bclr">Clear Layers from Selected</div>
+     <div class="ctx-sep"></div>
+     <div class="ctx-title" style="font-size:9px;padding-top:2px">Tag Connected Edges</div>
+     ${tagOpts}
+     <div class="ctx-item" id="_bnew" style="color:#c4a0f0">+ New tag…</div>
+     <div class="ctx-item ctx-remove" id="_bctag">Clear Tags from Connected Edges</div>`;
+
+  menu.querySelectorAll('[data-zone]').forEach(el =>
+    el.addEventListener('click', e => { e.stopPropagation(); bulkAssignLayer(el.dataset.zone); hideContextMenu(); }));
+  menu.querySelector('#_bclr').addEventListener('click', e => { e.stopPropagation(); bulkClearLayers(); hideContextMenu(); });
+  menu.querySelectorAll('.ctx-bulk-tag').forEach(el =>
+    el.addEventListener('click', e => { e.stopPropagation(); bulkTagConnectedEdges(el.dataset.tag); hideContextMenu(); }));
+  menu.querySelector('#_bnew').addEventListener('click', e => {
+    e.stopPropagation();
+    const name = prompt('New tag name:')?.trim();
+    if (name) bulkTagConnectedEdges(name);
+    hideContextMenu();
+  });
+  menu.querySelector('#_bctag').addEventListener('click', e => { e.stopPropagation(); bulkClearConnectedEdgeTags(); hideContextMenu(); });
+
+  menu.style.display = 'block';
+  const W = window.innerWidth, H = window.innerHeight;
+  const mw = menu.offsetWidth || 200, mh = menu.offsetHeight || 280;
+  menu.style.left = (x + mw > W ? x - mw : x) + 'px';
+  menu.style.top  = (y + mh > H ? y - mh : y) + 'px';
+}
+
+function hideContextMenu() {
+  document.getElementById('ctx-menu').style.display = 'none';
+  _ctxNodeId = null;
+}
+
+document.addEventListener('click', hideContextMenu);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideContextMenu(); });
+
 // ── stylesheet ────────────────────────────────────────────────────────────────
 function buildStyle() {
   return [
+    // ── default node: circle, label BELOW ──────────────────────────────────────
     {
       selector: 'node',
       style: {
-        'width': 28, 'height': 28, 'shape': 'ellipse',
-        'background-color': '#162334',
-        'border-width': 2.5, 'border-color': '#0078d4',
+        'width':  ele => { const dc = ele.data('degreeCentrality') || 0; return Math.round(20 + dc * 18); },
+        'height': ele => { const dc = ele.data('degreeCentrality') || 0; return Math.round(20 + dc * 18); },
+        'shape': 'ellipse',
+        'background-color': '#1e2a3a',
+        'border-width': 2, 'border-color': '#0078d4', 'border-style': 'solid',
         'label': 'data(label)',
-        'text-valign': 'top', 'text-halign': 'center',
-        'color': '#c9d8e8', 'font-size': 11,
-        'font-family': 'Segoe UI, system-ui, sans-serif', 'font-weight': '600',
-        'text-margin-y': -6, 'text-max-width': 150, 'text-wrap': 'ellipsis',
+        'text-valign': 'bottom', 'text-halign': 'center', 'text-margin-y': 12,
+        'color': '#ffffff',
+        'font-size': 12,
+        'font-family': 'Segoe UI, system-ui, sans-serif', 'font-weight': '700',
+        'text-wrap': 'none',
+        'text-background-color': '#252d3a', 'text-background-opacity': 0.72, 'text-background-padding': '3px',
         'transition-property': 'opacity, border-color, border-width, background-color, width, height',
         'transition-duration': '200ms',
         'overlay-padding': 6, 'z-index': 2,
       }
     },
+    // ── virtual ANY node ──
     {
       selector: 'node[?virtual]',
       style: {
         'border-color': '#a855f7', 'background-color': '#1d0d33',
-        'width': 22, 'height': 22, 'font-size': 10, 'color': '#c4a0f0', 'border-style': 'dashed',
+        'width': 26, 'height': 26, 'font-size': 10, 'color': '#c4a0f0', 'border-style': 'dashed',
       }
     },
+    // ── group nodes: rounded rectangle, label INSIDE ──
     {
       selector: 'node[?isGroup]:not([?virtual])',
-      style: { 'width': 36, 'height': 36, 'border-width': 3 }
+      style: {
+        'shape': 'roundrectangle',
+        'width':  ele => { const dc = ele.data('degreeCentrality') || 0; return Math.round((20 + dc * 18) * 2.0); },
+        'height': ele => { const dc = ele.data('degreeCentrality') || 0; return Math.round((20 + dc * 18) * 1.2); },
+        'border-width': 2.5,
+        'background-color': '#0d1e35',
+        'text-valign': 'center', 'text-halign': 'center', 'text-margin-y': 0,
+        'text-background-opacity': 0,
+      }
     },
-    // ── expanded compound ──
+    // ── zone border colors ──
+    { selector: 'node[zone="group"]',      style: { 'border-color': '#3b82f6' } },
+    { selector: 'node[zone="dmz"]',        style: { 'border-color': '#f59e0b' } },
+    { selector: 'node[zone="external"]',   style: { 'border-color': '#f87171' } },
+    { selector: 'node[zone="internal"]',   style: { 'border-color': '#34d399' } },
+    { selector: 'node[zone="management"]', style: { 'border-color': '#22d3ee' } },
+    { selector: 'node[zone="any"]',        style: { 'border-color': '#a855f7' } },
+    { selector: 'node[zone="other"]',      style: { 'border-color': '#6b7280' } },
+    // ── expanded compound container ──
     {
       selector: 'node.expanded',
       style: {
@@ -244,35 +672,62 @@ function buildStyle() {
         'label': 'data(label)',
         'text-valign': 'top', 'text-halign': 'center', 'text-margin-y': 10,
         'color': '#5498d0', 'font-size': 11, 'font-weight': '700',
-        'padding': '32px',
-        'z-index': 1,
+        'padding': '45px', 'z-index': 1,
+        'text-background-opacity': 0,
       }
     },
-    // ── member child nodes ──
+    // ── member child nodes: small circles, label below ──
     {
       selector: 'node[?isChild]',
       style: {
-        'width': 16, 'height': 16, 'shape': 'ellipse',
+        'width': 18, 'height': 18, 'shape': 'ellipse',
         'background-color': '#0a1c2e',
-        'border-width': 1.5, 'border-color': '#2a6496',
+        'border-width': 1.5, 'border-color': '#2a6496', 'border-style': 'solid',
         'label': 'data(label)',
         'text-valign': 'bottom', 'text-halign': 'center', 'text-margin-y': 4,
         'color': '#6da0c8', 'font-size': 9, 'font-weight': '500',
-        'text-max-width': 90, 'text-wrap': 'ellipsis',
+        'text-wrap': 'none',
+        'text-background-color': '#252d3a', 'text-background-opacity': 0.65, 'text-background-padding': '2px',
         'z-index': 3,
         'transition-property': 'border-color, background-color, opacity',
         'transition-duration': '150ms',
       }
     },
-    // focus states
-    { selector: 'node.dimmed',      style: { 'opacity': 0.1 } },
+    // ── child nodes that are subgroups: small rounded rect ──
+    {
+      selector: 'node[?isChild][?isGroup]',
+      style: {
+        'shape': 'roundrectangle', 'width': 44, 'height': 22,
+        'border-style': 'dashed', 'border-color': '#0078d4', 'border-width': 2,
+        'background-color': '#0d1e33', 'color': '#7ab8d8',
+        'text-valign': 'center', 'text-margin-y': 0,
+      }
+    },
+    // ── focus / dim / multi-select states ──
+    { selector: 'node.dimmed', style: { 'opacity': 0.05, 'border-style': 'dashed' } },
+    {
+      selector: 'node.multi-selected',
+      style: {
+        'border-color': '#f59e0b', 'border-width': 3.5, 'border-style': 'solid',
+        'background-color': '#2a1e0d', 'opacity': 1,
+        'overlay-color': '#f59e0b', 'overlay-opacity': 0.18, 'overlay-padding': 10,
+      }
+    },
     {
       selector: 'node.highlighted',
-      style: { 'border-color': '#00d4ff', 'border-width': 3.5, 'background-color': '#0d2035', 'opacity': 1 }
+      style: {
+        'border-color': '#00d4ff', 'border-width': 3.5, 'background-color': '#0d2035',
+        'opacity': 1, 'border-style': 'solid',
+        'overlay-color': '#00d4ff', 'overlay-opacity': 0.10, 'overlay-padding': 7,
+      }
     },
     {
       selector: 'node.focused',
-      style: { 'border-color': '#00d4ff', 'border-width': 4, 'background-color': '#0a2540', 'width': 42, 'height': 42, 'opacity': 1 }
+      style: {
+        'border-color': '#00d4ff', 'border-width': 4, 'background-color': '#0a2540',
+        'opacity': 1, 'border-style': 'solid',
+        'overlay-color': '#00d4ff', 'overlay-opacity': 0.22, 'overlay-padding': 13,
+      }
     },
     {
       selector: 'node.expanded.focused',
@@ -280,15 +735,16 @@ function buildStyle() {
     },
     {
       selector: 'node[?isChild].highlighted, node[?isChild].focused',
-      style: { 'border-color': '#00d4ff', 'background-color': '#0d2540', 'width': 20, 'height': 20 }
+      style: { 'border-color': '#00d4ff', 'border-style': 'solid', 'background-color': '#0d2540', 'width': 22, 'height': 22 }
     },
-    // edges
+    // ── edges — thickness scales with policy count ──
     {
       selector: 'edge',
       style: {
-        'width': 1.8, 'line-color': 'data(color)',
+        'width': 1.8,
+        'line-color': 'data(color)',
         'target-arrow-color': 'data(color)', 'target-arrow-shape': 'triangle', 'arrow-scale': 0.85,
-        'curve-style': 'bezier', 'control-point-step-size': 20,
+        'curve-style': 'bezier', 'control-point-step-size': 22,
         'opacity': 0.7,
         'transition-property': 'opacity, width', 'transition-duration': '180ms',
         'overlay-padding': 8,
@@ -296,53 +752,88 @@ function buildStyle() {
     },
     { selector: 'edge[action="disabled"]', style: { 'line-style': 'dashed', 'line-dash-pattern': [6, 4] } },
     { selector: 'edge.dimmed',             style: { 'opacity': 0.05 } },
-    { selector: 'edge.highlighted',        style: { 'opacity': 1, 'width': 3.2 } },
+    // ── same-core edges arch outward; each parallel line gets a unique offset ──
+    {
+      selector: 'edge[?sameCore]',
+      style: {
+        'curve-style': 'unbundled-bezier',
+        'control-point-distances': ele => {
+          const total = ele.data('lineTotal') || 1;
+          const idx   = ele.data('lineIndex') || 0;
+          const base  = 100, step = 18;
+          return [base - (total - 1) * step / 2 + idx * step];
+        },
+        'control-point-weights': [0.5],
+      }
+    },
+    // ── hide label/badge on non-primary parallel lines ──
+    { selector: 'edge[lineIndex > 0]', style: { 'label': '' } },
+    {
+      selector: 'edge.highlighted',
+      style: {
+        'opacity': 1,
+        'width': 3,
+        'overlay-color': 'data(color)', 'overlay-opacity': 0.40, 'overlay-padding': 9,
+        'label': ele => (ele.data('lineIndex') || 0) === 0 ? (ele.data('servicesLabel') || '') : '',
+        'font-size': 9, 'color': '#94a3b8',
+        'text-rotation': 'autorotate', 'text-margin-y': -8,
+        'text-background-color': '#252d3a', 'text-background-opacity': 0.85,
+        'text-background-padding': '2px',
+      }
+    },
   ];
 }
 
 // ── layout helpers ────────────────────────────────────────────────────────────
-function initialLayout() {
-  return {
-    name: 'grid',
-    animate: true, animationDuration: 700,
+
+// Concentric layout: inner rings = high k-core centrality, outer rings = peripheral.
+function applyConcentricLayout(opts) {
+  const { fit = true, duration = 500 } = opts || {};
+  if (!cy) return;
+  if (cy.nodes(':orphan').length === 0) return;
+  cy.layout({
+    name: 'concentric',
+    concentric: node => (node.data('coreNumber') || 0) + 1,
+    levelWidth: () => 1,
+    minNodeSpacing: 55,
+    spacingFactor: 2.2,
     padding: 80,
-    avoidOverlap: true, avoidOverlapPadding: 60,
-  };
+    animate: duration > 0,
+    animationDuration: duration,
+    animationEasing: 'ease-out-cubic',
+    fit,
+    avoidOverlap: true,
+  }).run();
+  if (fit && duration > 0) setTimeout(() => cy.fit(undefined, 80), duration + 60);
 }
 
-// Custom grid layout that correctly moves compound nodes (and their children)
-// together, preventing expanded subnets from overlapping siblings.
-function applyGridLayout(opts) {
-  const { fit = true, duration = 600 } = opts || {};
-  const orphans = cy.nodes(':orphan').toArray();
-  if (!orphans.length) return;
-  orphans.sort((a, b) => a.id().localeCompare(b.id()));
-  const cols = Math.ceil(Math.sqrt(orphans.length));
-  let maxW = 160, maxH = 160;
-  const GAP = 250;
-  orphans.forEach(node => {
-    const bb = node.boundingBox({ includeLabels: false });
-    maxW = Math.max(maxW, bb.w);
-    maxH = Math.max(maxH, bb.h);
-  });
-  const CELL_W = maxW + GAP, CELL_H = maxH + GAP;
-  orphans.forEach((node, i) => {
-    const col = i % cols, row = Math.floor(i / cols);
-    const tx = col * CELL_W + CELL_W / 2;
-    const ty = row * CELL_H + CELL_H / 2;
-    if (node.isParent()) {
-      const bb = node.boundingBox({ includeLabels: false });
-      const dx = tx - (bb.x1 + bb.x2) / 2;
-      const dy = ty - (bb.y1 + bb.y2) / 2;
-      node.descendants().forEach(ch => {
-        const p = ch.position();
-        ch.animate({ position: { x: p.x + dx, y: p.y + dy } }, { duration });
+// Spring physics: propagate node velocity after release so neighbours settle.
+function runSpringSettle() {
+  if (!cy) return;
+  let anyMoving = false;
+  cy.batch(() => {
+    cy.nodes(':orphan').forEach(n => {
+      const id = n.id();
+      const v = _nodeVel[id] || { vx: 0, vy: 0 };
+      const np = n.position();
+      n.neighborhood('node:orphan').forEach(m => {
+        const mp = m.position();
+        const dx = mp.x - np.x, dy = mp.y - np.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const force = (dist - SPRING_REST) * SPRING_K;
+        v.vx += (dx / dist) * force;
+        v.vy += (dy / dist) * force;
       });
-    } else {
-      node.animate({ position: { x: tx, y: ty } }, { duration });
-    }
+      v.vx *= (1 - SPRING_DAMP);
+      v.vy *= (1 - SPRING_DAMP);
+      _nodeVel[id] = v;
+      if (Math.abs(v.vx) > 0.3 || Math.abs(v.vy) > 0.3) {
+        n.position({ x: np.x + v.vx, y: np.y + v.vy });
+        anyMoving = true;
+      }
+    });
   });
-  if (fit) setTimeout(() => cy.fit(undefined, 80), duration + 50);
+  _physicsFrame = anyMoving ? requestAnimationFrame(runSpringSettle) : null;
 }
 
 // ── build graph ───────────────────────────────────────────────────────────────
@@ -350,6 +841,8 @@ function buildGraph(data) {
   if (cy) cy.destroy();
   expandedNodes.clear();
   savedPositions.clear();
+  pinnedNodeIds.clear();
+  clearMultiSelection();
 
   const elements = [];
   for (const n of data.nodes) {
@@ -359,51 +852,205 @@ function buildGraph(data) {
       virtual: n.virtual || false, isGroup: n.isGroup || false,
       memberCount: n.memberCount || 0, comment: n.comment || '',
       members: n.members || [],
+      connectionCount: n.connectionCount || 0,
+      degreeCentrality: n.degreeCentrality || 0,
+      coreNumber: n.coreNumber || 0,
+      coreNorm: n.coreNorm || 0,
+      zone: nodeZoneOverrides.get(n.id) || 'other', // always manual; ignore backend zone
     }});
   }
 
   const nodeIds = new Set(elements.map(e => e.data.id));
+  const nodeCoreMap = Object.fromEntries(data.nodes.map(n => [n.id, n.coreNumber || 0]));
   for (const e of data.edges) {
     if (!nodeIds.has(e.source) || !nodeIds.has(e.target)) continue;
-    elements.push({ data: {
-      id: e.id, source: e.source, target: e.target,
-      color: EDGE_COLOR[e.action] || '#607d8b',
-      action: e.action, count: e.count, policies: e.policies,
-    }});
+    const srcCore = nodeCoreMap[e.source], dstCore = nodeCoreMap[e.target];
+    const sameCore = !isVirtual(e.source) && !isVirtual(e.target) && srcCore === dstCore;
+    // Create up to 3 parallel sub-edges so multi-policy connections draw separate traceable lines
+    const lineTotal = Math.min(e.count, 3);
+    for (let li = 0; li < lineTotal; li++) {
+      elements.push({ data: {
+        id: `${e.id}__${li}`, source: e.source, target: e.target,
+        color: EDGE_COLOR[e.action] || '#607d8b',
+        action: e.action, count: e.count, policies: e.policies,
+        services: e.services || [], servicesLabel: e.servicesLabel || '',
+        sameCore, connId: e.id, lineIndex: li, lineTotal,
+      }});
+    }
   }
 
+  const nodeEls = elements.filter(e => !e.data.source);
   cy = cytoscape({
     container: document.getElementById('cy'),
     elements,
     style: buildStyle(),
-    layout: elements.length > 0 ? initialLayout() : { name: 'null' },
+    layout: nodeEls.length > 0 ? {
+      name: 'concentric',
+      concentric: node => (node.data('coreNumber') || 0) + 1,
+      levelWidth: () => 1,
+      minNodeSpacing: 55,
+      spacingFactor: 2.2,
+      padding: 80,
+      animate: false,
+      avoidOverlap: true,
+    } : { name: 'null' },
     wheelSensitivity: 0.3, minZoom: 0.05, maxZoom: 5,
+    boxSelectionEnabled: true,   // Shift+drag on canvas = rubber-band multi-select
+    selectionType: 'additive',   // Ctrl+click adds to Cytoscape internal selection
+    autoungrabify: false, autounselectify: false,
   });
 
-  cy.on('tap', 'node', onNodeTap);
+  // ── grab: record start positions for click-vs-drag detection and group drag ──
+  cy.on('grab', 'node:orphan', e => {
+    const node = e.target;
+    const p = node.position();
+    _grabOrigin = { x: p.x, y: p.y };
+    // If dragging a multi-selected node, snapshot all selected positions
+    if (_multiSelectActive && selectedNodeIds.has(node.id())) {
+      _groupGrabPositions = new Map();
+      selectedNodeIds.forEach(id => {
+        const n = cy.getElementById(id);
+        if (n.length) _groupGrabPositions.set(id, { x: n.position().x, y: n.position().y });
+      });
+    } else {
+      _groupGrabPositions = null;
+    }
+  });
+
+  // ── drag: group move or single-node damped spring nudge ──
+  cy.on('drag', 'node:orphan', e => {
+    if (!_grabOrigin) return;
+    const node = e.target;
+    const pos  = node.position();
+    const dx = pos.x - _grabOrigin.x, dy = pos.y - _grabOrigin.y;
+    if (Math.hypot(dx, dy) < 8) return; // treat sub-8px movement as a click, not a drag
+
+    if (_groupGrabPositions && selectedNodeIds.has(node.id())) {
+      // Move every selected node by the same pixel delta — preserves relative layout
+      cy.batch(() => {
+        _groupGrabPositions.forEach((orig, id) => {
+          if (id === node.id()) return;
+          const n = cy.getElementById(id);
+          if (n.length) n.position({ x: orig.x + dx, y: orig.y + dy });
+        });
+      });
+      return; // Skip spring nudge in group-drag mode
+    }
+
+    // Single-node drag: heavily damped spring nudge, skip pinned nodes
+    node.neighborhood('node:orphan').forEach(neighbor => {
+      if (pinnedNodeIds.has(neighbor.id())) return;
+      const np = neighbor.position();
+      const ndx = pos.x - np.x, ndy = pos.y - np.y;
+      const dist = Math.sqrt(ndx * ndx + ndy * ndy) || 1;
+      const pull = (dist - SPRING_REST) * SPRING_K * 0.04;
+      const vn = _nodeVel[neighbor.id()] || { vx: 0, vy: 0 };
+      vn.vx = (ndx / dist) * pull;
+      vn.vy = (ndy / dist) * pull;
+      _nodeVel[neighbor.id()] = vn;
+      neighbor.position({ x: np.x + vn.vx, y: np.y + vn.vy });
+    });
+  });
+
+  // ── free: pin dropped node(s), kill any residual physics ──
+  cy.on('free', 'node:orphan', e => {
+    if (_physicsFrame) { cancelAnimationFrame(_physicsFrame); _physicsFrame = null; }
+    Object.keys(_nodeVel).forEach(k => { _nodeVel[k] = { vx: 0, vy: 0 }; });
+    if (_groupGrabPositions) {
+      selectedNodeIds.forEach(id => pinnedNodeIds.add(id));
+      _groupGrabPositions = null;
+    } else if (e.target) {
+      pinnedNodeIds.add(e.target.id());
+    }
+    _grabOrigin = null;
+  });
+
+  // ── tap: Ctrl+click toggles multi-select; plain click clears it ──
+  let _tapTimer = null;
+  cy.on('tap', 'node', e => {
+    const isCtrl = e.originalEvent?.ctrlKey || e.originalEvent?.metaKey;
+    clearTimeout(_tapTimer);
+
+    if (isCtrl && !e.target.data('isChild')) {
+      toggleNodeSelection(e.target.id());
+      return;
+    }
+    if (_multiSelectActive) {
+      clearMultiSelection();
+      return; // don't also run normal focus when collapsing selection
+    }
+    _tapTimer = setTimeout(() => onNodeTap(e), 220);
+  });
+  cy.on('dbltap', 'node', e => {
+    clearTimeout(_tapTimer);
+    onNodeDblTap(e);
+  });
   cy.on('tap', 'edge', onEdgeTap);
-  cy.on('tap', e => { if (e.target === cy) clearFocus(); });
+  cy.on('tap', e => {
+    if (e.target === cy) {
+      if (_multiSelectActive) clearMultiSelection();
+      else clearFocus();
+    }
+  });
+
+  // ── box selection: Shift+drag on canvas; sync to selectedNodeIds ──
+  cy.on('boxselect', () => {
+    cy.nodes(':selected:orphan').forEach(n => {
+      selectedNodeIds.add(n.id());
+      n.addClass('multi-selected');
+    });
+    _multiSelectActive = selectedNodeIds.size > 0;
+    _updateBulkButton();
+    cy.nodes().unselect();
+  });
+
+  // ── right-click on node: sign/unsign (selection toggle, no menu) ──
+  cy.on('cxttap', 'node:orphan', e => {
+    e.originalEvent?.preventDefault();
+    toggleNodeSelection(e.target.id());
+  });
+
+  // ── right-click on canvas: open actions menu if any nodes are signed ──
+  cy.on('cxttap', e => {
+    if (e.target !== cy) return;
+    e.originalEvent?.preventDefault();
+    if (selectedNodeIds.size >= 1) {
+      const pos = e.renderedPosition;
+      showContextMenu(pos.x, pos.y);
+    }
+  });
+
+  let _labelTimer = null;
+  cy.on('zoom', () => { clearTimeout(_labelTimer); _labelTimer = setTimeout(updateLabelSizes, 40); });
+  updateLabelSizes();
 
   document.getElementById('welcome').style.display = elements.length > 0 ? 'none' : 'flex';
   updateStats();
+}
+
+// ── constant-size labels ──────────────────────────────────────────────────────
+function updateLabelSizes() {
+  if (!cy) return;
+  const z = cy.zoom();
+  cy.batch(() => {
+    cy.nodes('[?isChild]').style('font-size', 9 / z);
+    cy.nodes(':not([?isChild])').style('font-size', 12 / z);
+  });
 }
 
 // ── expand / collapse ─────────────────────────────────────────────────────────
 function expandNode(nodeId) {
   const node    = cy.getElementById(nodeId);
   const members = node.data('members') || [];
-  if (members.length === 0) return;
+  if (members.length === 0 || expandedNodes.has(nodeId)) return;
 
-  // 1. Save the current center position — we'll restore it on collapse
   const pos = node.position();
   savedPositions.set(nodeId, { x: pos.x, y: pos.y });
 
-  // 2. Lay children out in a grid centered exactly on (pos.x, pos.y)
-  // Adapt grid shape to member count: 1→1col, 2→2, 3-4→2, 5-9→3, 10+→4
   const n       = members.length;
   const cols    = n === 1 ? 1 : n <= 4 ? 2 : n <= 9 ? 3 : 4;
   const rows    = Math.ceil(n / cols);
-  const GAPX    = 140, GAPY = 110;
+  const GAPX    = 165, GAPY = 135;
   const toAdd   = [];
   const childIds = [];
 
@@ -411,7 +1058,6 @@ function expandNode(nodeId) {
     const col    = i % cols;
     const row    = Math.floor(i / cols);
     const rowLen = Math.min(members.length - row * cols, cols);
-    // center each row independently around pos.x; center all rows around pos.y
     const cx  = pos.x + (col - (rowLen - 1) / 2) * GAPX;
     const cy_ = pos.y + (row - (rows - 1)   / 2) * GAPY;
     const childId = `__m__${nodeId}__${i}`;
@@ -421,6 +1067,9 @@ function expandNode(nodeId) {
         id: childId, parent: nodeId,
         label: m.name, address: m.address, type: m.type,
         comment: m.comment || '', isChild: true, parentSubnet: nodeId,
+        isGroup: m.isGroup || false,
+        memberCount: m.memberCount || 0,
+        members: m.members || [],
       },
       position: { x: cx, y: cy_ },
     });
@@ -429,12 +1078,22 @@ function expandNode(nodeId) {
   cy.add(toAdd);
   node.addClass('expanded');
   expandedNodes.set(nodeId, childIds);
-  applyGridLayout({ fit: true });
+  updateLabelSizes();
+
+  // Re-run layout to avoid overlaps but never change viewport zoom or center
+  if (!node.data('isChild')) {
+    applyConcentricLayout({ fit: false, duration: 350 });
+  }
 }
 
 function collapseNode(nodeId) {
   const childIds = expandedNodes.get(nodeId);
   if (!childIds) return;
+
+  // recursively collapse any expanded children first
+  for (const childId of childIds) {
+    if (expandedNodes.has(childId)) collapseNode(childId);
+  }
 
   cy.remove(cy.nodes().filter(n => childIds.includes(n.id())));
   const node = cy.getElementById(nodeId);
@@ -444,13 +1103,15 @@ function collapseNode(nodeId) {
   const saved = savedPositions.get(nodeId);
   if (saved) { node.position(saved); savedPositions.delete(nodeId); }
 
-  applyGridLayout({ fit: false });
+  if (!node.data('isChild')) applyConcentricLayout({ fit: false, duration: 350 });
 }
 
 // ── focus ─────────────────────────────────────────────────────────────────────
 function clearFocus() {
   if (!cy) return;
   cy.elements().removeClass('dimmed highlighted focused');
+  cy.nodes(':orphan').unlock();
+  clearMultiSelection();
   closePanel();
 }
 
@@ -462,26 +1123,65 @@ function focusNode(node) {
   relevant.removeClass('dimmed').addClass('highlighted');
   node.removeClass('highlighted').addClass('focused');
   node.connectedEdges().removeClass('dimmed').addClass('highlighted');
+  // Lock every orphan node in place — no position drift while inspecting
+  cy.nodes(':orphan').lock();
 }
 
 function focusEdge(edge) {
+  // Freeze any in-progress spring physics so nothing shifts on selection
+  if (_physicsFrame) { cancelAnimationFrame(_physicsFrame); _physicsFrame = null; }
+  Object.keys(_nodeVel).forEach(k => { _nodeVel[k] = { vx: 0, vy: 0 }; });
+
+  // Highlight ALL parallel sub-edges that belong to the same connection
+  const connId = edge.data('connId') || edge.id();
+  const siblings = cy.edges(`[connId="${connId}"]`);
+  const allEdges = siblings.length > 0 ? siblings : edge;
+
   cy.elements().addClass('dimmed').removeClass('highlighted focused');
-  edge.removeClass('dimmed').addClass('highlighted');
+  allEdges.removeClass('dimmed').addClass('highlighted');
   [edge.source(), edge.target()].forEach(n => {
     n.removeClass('dimmed').addClass('highlighted');
     n.descendants().removeClass('dimmed');
   });
+  cy.nodes(':orphan').lock();   // freeze all positions during edge inspection
 }
 
 // ── tap handlers ──────────────────────────────────────────────────────────────
+function onNodeDblTap(e) {
+  // Double-click must never trigger drag physics
+  if (_physicsFrame) { cancelAnimationFrame(_physicsFrame); _physicsFrame = null; }
+  Object.keys(_nodeVel).forEach(k => { _nodeVel[k] = { vx: 0, vy: 0 }; });
+  _grabOrigin = null;
+
+  const node = e.target;
+  const data = node.data();
+  const members = data.members || [];
+  if (!data.isGroup && members.length === 0) return;
+  if (expandedNodes.has(node.id())) {
+    collapseNode(node.id());
+  } else {
+    expandNode(node.id());
+  }
+  // refresh panel expand button if panel is open
+  if (document.getElementById('detail-panel').classList.contains('open')) {
+    data.isChild ? showMemberPanel(data) : showNodePanel(data);
+  }
+}
+
 function onNodeTap(e) {
+  // Freeze spring physics the moment a node is selected
+  if (_physicsFrame) { cancelAnimationFrame(_physicsFrame); _physicsFrame = null; }
+  Object.keys(_nodeVel).forEach(k => { _nodeVel[k] = { vx: 0, vy: 0 }; });
+
   const node = e.target;
   const data = node.data();
 
   if (data.isChild) {
     showMemberPanel(data);
-    const parent = cy.getElementById(data.parentSubnet);
-    if (parent.length) focusNode(parent);
+    if (!data.isGroup) {
+      const parent = cy.getElementById(data.parentSubnet);
+      if (parent.length) focusNode(parent);
+    }
     return;
   }
 
@@ -496,7 +1196,10 @@ function onEdgeTap(e) {
 
 // ── detail panel ──────────────────────────────────────────────────────────────
 function openPanel()  { document.getElementById('detail-panel').classList.add('open'); }
-function closePanel() { document.getElementById('detail-panel').classList.remove('open'); }
+function closePanel() {
+  document.getElementById('detail-panel').classList.remove('open');
+  _currentEdgePanelData = null;
+}
 
 document.getElementById('panel-close').addEventListener('click', clearFocus);
 
@@ -593,22 +1296,30 @@ function showMemberPanel(data) {
 }
 
 function showEdgePanel(data) {
+  _currentEdgePanelData = data;
   setHeader(`${data.source}  →  ${data.target}`,
     `${data.count} polic${data.count===1?'y':'ies'}  ·  ${data.action.toUpperCase()}`);
-  let html = '<table class="data-table"><thead><tr><th>#</th><th>Name</th><th>Source</th><th>Destination</th><th>Service</th><th>Action</th><th>Status</th></tr></thead><tbody>';
+  let html = '<table class="data-table"><thead><tr><th>#</th><th>Name</th><th>Source</th><th>Destination</th><th>Service</th><th>Action</th><th>Status</th><th>Process Tag</th></tr></thead><tbody>';
   for (const p of data.policies) {
     const ac = p.action.toLowerCase();
-    html += `<tr>
+    html += `<tr data-policy-id="${esc(String(p.id))}">
       <td>${esc(p.id)}</td><td>${esc(p.name)}</td>
       <td style="font-size:10px">${esc((p.sources||[]).join(', '))}</td>
       <td style="font-size:10px">${esc((p.destinations||[]).join(', '))}</td>
       <td style="font-size:10px">${esc((p.services||[]).join(', ')||'any')}</td>
       <td><span class="tag tag-${ac}">${esc(p.action)}</span></td>
       <td><span class="tag ${p.enabled?'tag-on':'tag-off'}">${p.enabled?'ON':'OFF'}</span></td>
+      <td class="policy-tag-cell">${_tagCellHtml(p.id)}</td>
     </tr>`;
   }
   html += '</tbody></table>';
   document.getElementById('panel-body').innerHTML = html;
+  document.querySelectorAll('#panel-body .tag-assign-sel').forEach(sel => {
+    sel.addEventListener('change', e => assignTag(e.target.value, e.target.dataset.policyId));
+  });
+  document.querySelectorAll('#panel-body .tag-remove-btn').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); assignTag('', e.target.dataset.policyId); });
+  });
   openPanel();
 }
 
@@ -672,13 +1383,13 @@ document.getElementById('btn-fit').addEventListener('click', () => cy && cy.fit(
 
 document.getElementById('btn-relayout').addEventListener('click', () => {
   if (!cy) return;
-  applyGridLayout();
-  toast('Re-running layout…');
+  applyConcentricLayout({ fit: true });
+  toast('Re-applying concentric layout…');
 });
 
 document.getElementById('btn-export').addEventListener('click', () => {
   if (!cy) return;
-  const png = cy.png({ scale: 2, bg: '#0f1923', full: true });
+  const png = cy.png({ scale: 2, bg: '#252d3a', full: true });
   const a = document.createElement('a');
   a.href = png; a.download = 'fw-topology.png'; a.click();
   toast('Exported PNG');
@@ -713,8 +1424,36 @@ document.getElementById('search').addEventListener('input', function() {
   if (!q) this._firstMatch = null;
 });
 
+// ── process-tag toolbar handlers ──────────────────────────────────────────────
+document.getElementById('btn-create-tag').addEventListener('click', () => {
+  const input = document.getElementById('tag-name-input');
+  createTag(input.value);
+  input.value = '';
+});
+document.getElementById('tag-name-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    createTag(e.target.value);
+    e.target.value = '';
+  }
+});
+document.getElementById('tag-filter').addEventListener('change', e => {
+  e.target.value ? applyTagFilter(e.target.value) : clearTagFilter();
+});
+document.getElementById('btn-clear-tag-filter').addEventListener('click', clearTagFilter);
+document.getElementById('btn-clear-layers').addEventListener('click', clearAllNodeZones);
+document.getElementById('btn-clear-edge-tags').addEventListener('click', clearAllEdgeTags);
+document.getElementById('btn-bulk-actions').addEventListener('click', e => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  showContextMenu(rect.left, rect.bottom + 6);
+});
+
+// Block the native browser context menu everywhere on the canvas
+document.getElementById('cy').addEventListener('contextmenu', e => e.preventDefault(), true);
+
 // ── init ──────────────────────────────────────────────────────────────────────
 // ANY is off by default — button starts inactive
+loadTags();      // restore persisted process tags
+loadNodeZones(); // restore persisted node layer assignments
 fetch('/api/topology')
   .then(r => r.json())
   .then(d => { if (d.nodes && d.nodes.length > 0) applyTopology(d); })

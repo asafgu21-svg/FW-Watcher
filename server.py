@@ -6,6 +6,7 @@ import threading
 import webbrowser
 from pathlib import Path
 
+import networkx as nx
 from flask import Flask, jsonify, request, send_from_directory
 
 from models import NetworkTopology
@@ -76,36 +77,72 @@ def _topology_json() -> dict:
 
     conns = topology.get_connections()
 
-    # Nodes: all subnets + all groups + anything named in policy connections
-    all_names: set[str] = set(topology.get_subnets())
-    for n, a in topology.addresses.items():
-        if a.obj_type == "group" and a.members:
-            all_names.add(n)
+    # Only nodes that actually appear in policy connections
+    all_names: set[str] = set()
+    conn_count: dict[str, int] = {}
     for c in conns:
         all_names.add(c["src"])
         all_names.add(c["dst"])
+        conn_count[c["src"]] = conn_count.get(c["src"], 0) + 1
+        conn_count[c["dst"]] = conn_count.get(c["dst"], 0) + 1
+
+    max_degree = max(conn_count.values(), default=1)
+
+    _G = nx.Graph()
+    for _n in all_names:
+        _G.add_node(_n)
+    for _c in conns:
+        _G.add_edge(_c["src"], _c["dst"])
+    _core = nx.core_number(_G) if _G.number_of_nodes() > 0 else {}
+    _max_core = max(_core.values(), default=1)
+
+    def _serialize_members(names: list[str], visited: set[str]) -> list[dict]:
+        result = []
+        for m in names:
+            addr = topology.addresses.get(m)
+            if not addr or m in visited:
+                continue
+            is_grp = addr.obj_type == "group"
+            sub = _serialize_members(addr.members, visited | {m}) if is_grp else []
+            result.append({
+                "name": m,
+                "type": addr.obj_type,
+                "address": addr.display_addr,
+                "comment": addr.comment,
+                "isGroup": is_grp,
+                "memberCount": len(sub),
+                "members": sub,
+            })
+        return result
 
     for name in all_names:
         addr = topology.addresses.get(name)
         virtual = name not in topology.addresses
-        members = topology.get_group_members(name) if addr else []
+        if addr and addr.obj_type == "group":
+            members = _serialize_members(addr.members, {name})
+        else:
+            members = []
+        degree = conn_count.get(name, 0)
+        if virtual:
+            zone = "any"
+        elif addr:
+            zone = addr.zone
+        else:
+            zone = "other"
         nodes.append({
             "id": name,
             "label": name,
             "cidr": addr.display_addr if addr else "",
             "virtual": virtual,
-            "isGroup": bool(members),
+            "isGroup": bool(members) or (addr is not None and addr.obj_type == "group"),
             "memberCount": len(members),
             "comment": addr.comment if addr else "",
-            "members": [
-                {
-                    "name": m.name,
-                    "type": m.obj_type,
-                    "address": m.display_addr,
-                    "comment": m.comment,
-                }
-                for m in members
-            ],
+            "members": members,
+            "connectionCount": degree,
+            "degreeCentrality": round(degree / max_degree, 3),
+            "coreNumber": _core.get(name, 0),
+            "coreNorm": round(_core.get(name, 0) / max(_max_core, 1), 3),
+            "zone": zone,
         })
 
     for c in conns:
@@ -116,12 +153,24 @@ def _topology_json() -> dict:
         else:
             action = "deny"
 
+        seen_svcs: set[str] = set()
+        services: list[str] = []
+        for p in c["policies"]:
+            for s in p.services:
+                if s and s.lower() not in ("any", "all") and s not in seen_svcs:
+                    seen_svcs.add(s)
+                    services.append(s)
+        top = services[:3]
+        svc_label = ", ".join(top) + (f" +{len(services) - 3}" if len(services) > 3 else "")
+
         edges.append({
             "id": f"{c['src']}__{c['dst']}",
             "source": c["src"],
             "target": c["dst"],
             "action": action,
             "count": c["count"],
+            "services": services,
+            "servicesLabel": svc_label,
             "policies": [
                 {
                     "id": p.policy_id,

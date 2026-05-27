@@ -43,6 +43,25 @@ class AddressObject:
         net = self.network
         return str(net) if net else self.subnet_str
 
+    @property
+    def zone(self) -> str:
+        """Classify this address into a display zone for color-coding.
+        Name/interface keywords take priority; 'group' is the fallback for
+        groups whose name doesn't match a known zone."""
+        combined = (self.name + " " + (self.interface or "")).lower()
+        if "dmz" in combined:
+            return "dmz"
+        if any(x in combined for x in ("wan", "external", "internet", "public", "untrust", "outside")):
+            return "external"
+        if any(x in combined for x in ("mgmt", "management", "loopback")):
+            return "management"
+        if any(x in combined for x in ("corp", "lan", "internal", "inside", "trust",
+                                        "office", "user", "client", "dev", "vpn")):
+            return "internal"
+        if self.obj_type == "group":
+            return "group"
+        return "other"
+
     def contains(self, other: "AddressObject") -> bool:
         my_net = self.network
         if not my_net or not self.is_subnet:
